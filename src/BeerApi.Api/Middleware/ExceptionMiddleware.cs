@@ -1,6 +1,5 @@
 using BeerApi.Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
-using System.Text.Json;
 
 namespace BeerApi.Api.Middleware;
 
@@ -18,26 +17,35 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
         catch (NotFoundException ex)
         {
             _logger.LogWarning(ex, "Resource not found");
-            await WriteErrorAsync(context, StatusCodes.Status404NotFound, ex.Message);
+            await WriteProblemAsync(context, StatusCodes.Status404NotFound,
+                "Recurso não encontrado", ex.Message);
         }
         catch (BusinessException ex)
         {
             _logger.LogWarning(ex, "Business rule violation");
-            await WriteErrorAsync(context, StatusCodes.Status400BadRequest, ex.Message);
+            await WriteProblemAsync(context, StatusCodes.Status400BadRequest,
+                "Violação de regra de negócio", ex.Message);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");
-            await WriteErrorAsync(context, StatusCodes.Status500InternalServerError,
-                "Ocorreu um erro inesperado.");
+            await WriteProblemAsync(context, StatusCodes.Status500InternalServerError,
+                "Erro interno", "Ocorreu um erro inesperado.");
         }
     }
 
-    private static async Task WriteErrorAsync(HttpContext context, int statusCode, string message)
+    private static async Task WriteProblemAsync(
+        HttpContext context, int statusCode, string title, string detail)
     {
+        if (context.Response.HasStarted)
+            return;
+
         context.Response.StatusCode = statusCode;
-        context.Response.ContentType = "application/json";
-        var payload = JsonSerializer.Serialize(new { error = message });
-        await context.Response.WriteAsync(payload);
+        await context.Response.WriteAsJsonAsync(new ProblemDetails
+        {
+            Status = statusCode,
+            Title = title,
+            Detail = detail
+        });
     }
 }

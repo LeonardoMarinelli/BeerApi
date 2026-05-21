@@ -11,25 +11,25 @@ public class BeerService(IBeerRepository beerRepository, IBreweryRepository brew
     private readonly IBeerRepository _beerRepository = beerRepository;
     private readonly IBreweryRepository _breweryRepository = breweryRepository;
 
-    public async Task<IEnumerable<BeerDto>> GetByBreweryIdAsync(int breweryId)
+    public async Task<IEnumerable<BeerDto>> GetByBreweryIdAsync(int breweryId, CancellationToken ct = default)
     {
-        if (!await _breweryRepository.ExistsAsync(breweryId))
+        if (!await _breweryRepository.ExistsAsync(breweryId, ct))
             throw new NotFoundException("Cervejaria", breweryId);
 
-        var beers = await _beerRepository.GetByBreweryIdAsync(breweryId);
+        var beers = await _beerRepository.GetByBreweryIdAsync(breweryId, ct);
         return beers.Select(MapToDto);
     }
 
-    public async Task<BeerDto> GetByIdAsync(int id)
+    public async Task<BeerDto> GetByIdAsync(int id, CancellationToken ct = default)
     {
-        var beer = await _beerRepository.GetByIdWithBreweryAsync(id)
+        var beer = await _beerRepository.GetByIdWithBreweryAsync(id, ct)
             ?? throw new NotFoundException("Cerveja", id);
         return MapToDto(beer);
     }
 
-    public async Task<BeerDto> CreateAsync(int breweryId, CreateBeerDto dto)
+    public async Task<BeerDto> CreateAsync(int breweryId, CreateBeerDto dto, CancellationToken ct = default)
     {
-        var brewery = await _breweryRepository.GetByIdAsync(breweryId)
+        var brewery = await _breweryRepository.GetByIdAsync(breweryId, ct)
             ?? throw new NotFoundException("Cervejaria", breweryId);
 
         var beer = new Beer
@@ -42,13 +42,13 @@ public class BeerService(IBeerRepository beerRepository, IBreweryRepository brew
             Brewery = brewery
         };
 
-        await _beerRepository.AddAsync(beer);
+        await _beerRepository.AddAsync(beer, ct);
         return MapToDto(beer);
     }
 
-    public async Task<BeerDto> UpdateAsync(int breweryId, int beerId, UpdateBeerDto dto)
+    public async Task<BeerDto> UpdateAsync(int breweryId, int beerId, UpdateBeerDto dto, CancellationToken ct = default)
     {
-        var beer = await _beerRepository.GetByIdWithBreweryAsync(beerId)
+        var beer = await _beerRepository.GetByIdWithBreweryAsync(beerId, ct)
             ?? throw new NotFoundException("Cerveja", beerId);
 
         if (beer.BreweryId != breweryId)
@@ -59,19 +59,19 @@ public class BeerService(IBeerRepository beerRepository, IBreweryRepository brew
         beer.AlcoholContent = dto.AlcoholContent;
         beer.Price = dto.Price;
 
-        await _beerRepository.UpdateAsync(beer);
+        await _beerRepository.UpdateAsync(beer, ct);
         return MapToDto(beer);
     }
 
-    public async Task DeleteAsync(int breweryId, int beerId)
+    public async Task DeleteAsync(int breweryId, int beerId, CancellationToken ct = default)
     {
-        var beer = await _beerRepository.GetByIdAsync(beerId)
+        var beer = await _beerRepository.GetByIdAsync(beerId, ct)
             ?? throw new NotFoundException("Cerveja", beerId);
 
         if (beer.BreweryId != breweryId)
             throw new BusinessException("Esta cerveja não pertence a esta cervejaria.");
 
-        await _beerRepository.DeleteAsync(beer);
+        await _beerRepository.DeleteAsync(beer, ct);
     }
 
     private static BeerDto MapToDto(Beer beer) =>

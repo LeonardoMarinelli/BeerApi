@@ -13,17 +13,17 @@ public class WholesalersController(IWholesalerService wholesalerService) : Contr
     private readonly IWholesalerService _wholesalerService = wholesalerService;
 
     [HttpGet]
-    public async Task<IActionResult> GetAll() =>
-        Ok(await _wholesalerService.GetAllAsync());
+    public async Task<IActionResult> GetAll(CancellationToken ct) =>
+        Ok(await _wholesalerService.GetAllAsync(ct));
 
     [HttpGet("{id:int}/beers")]
-    public async Task<IActionResult> GetStock(int id) =>
-        Ok(await _wholesalerService.GetStockByWholesalerIdAsync(id));
+    public async Task<IActionResult> GetStock(int id, CancellationToken ct) =>
+        Ok(await _wholesalerService.GetStockByWholesalerIdAsync(id, ct));
 
     [HttpPost("{id:int}/quote")]
-    public async Task<IActionResult> GetQuote(int id, [FromBody] QuoteRequestDto request)
+    public async Task<IActionResult> GetQuote(int id, [FromBody] QuoteRequestDto request, CancellationToken ct)
     {
-        var quote = await _wholesalerService.GetQuoteAsync(id, request);
+        var quote = await _wholesalerService.GetQuoteAsync(id, request, ct);
         return Ok(quote);
     }
 }

@@ -58,10 +58,10 @@ BeerApi.Api             ← Controllers, Middleware, Program.cs
 - **Role-based Authorization**: roles `Admin`, `Brewer` e `Wholesaler` com validação de posse (brewer só edita suas próprias cervejas)
 - **Custom Claims**: `BreweryId` e `WholesalerId` injetados no token via `IUserClaimsPrincipalFactory`
 - **Audit Log automático**: override de `SaveChangesAsync` no `DbContext` captura todas as operações de escrita (Create/Update/Delete) com o usuário responsável
-- **Global Exception Middleware**: respostas de erro padronizadas com HTTP status correto (400, 404, 500)
+- **Global Exception Middleware**: respostas de erro padronizadas com HTTP status correto (400, 404, 500), no formato **ProblemDetails** (RFC 9457)
 - **EF Core Migrations**: schema versionado, aplicado automaticamente no startup
 - **Seed via `HasData`**: dados das cervejarias, cervejas e atacadistas são parte da migration (reproduzível)
-- **Transações explícitas**: registro de novo usuário (brewer/wholesaler) usa `BeginTransactionAsync` para garantir consistência
+- **Transações explícitas**: registro de novo usuário (brewer/wholesaler) e registro de venda (`POST /api/sales`) usam `BeginTransactionAsync` para garantir consistência entre estoque e histórico de vendas
 - **Records para DTOs**: imutabilidade e igualdade estrutural por padrão
 - **Credenciais externalizadas**: banco e admin via `.env` + variáveis de ambiente (nada sensível em arquivos versionados)
 - **Validação de entrada**: `DataAnnotations` em todos os DTOs de entrada — `[ApiController]` rejeita automaticamente com `400` antes de chegar aos serviços

@@ -13,9 +13,9 @@ public class AuthService(UserManager<ApplicationUser> userManager, AppDbContext 
     private readonly UserManager<ApplicationUser> _userManager = userManager;
     private readonly AppDbContext _context = context;
 
-    public async Task RegisterBrewerAsync(RegisterBrewerDto dto)
+    public async Task RegisterBrewerAsync(RegisterBrewerDto dto, CancellationToken ct = default)
     {
-        await using var transaction = await _context.Database.BeginTransactionAsync();
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         try
         {
             var brewery = new Brewery
@@ -25,7 +25,7 @@ public class AuthService(UserManager<ApplicationUser> userManager, AppDbContext 
                 Description = dto.BreweryDescription
             };
             _context.Breweries.Add(brewery);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
             var user = new ApplicationUser
             {
@@ -42,18 +42,18 @@ public class AuthService(UserManager<ApplicationUser> userManager, AppDbContext 
                 throw new BusinessException(string.Join("; ", result.Errors.Select(e => e.Description)));
 
             await _userManager.AddToRoleAsync(user, "Brewer");
-            await transaction.CommitAsync();
+            await transaction.CommitAsync(ct);
         }
         catch
         {
-            await transaction.RollbackAsync();
+            await transaction.RollbackAsync(ct);
             throw;
         }
     }
 
-    public async Task RegisterWholesalerAsync(RegisterWholesalerDto dto)
+    public async Task RegisterWholesalerAsync(RegisterWholesalerDto dto, CancellationToken ct = default)
     {
-        await using var transaction = await _context.Database.BeginTransactionAsync();
+        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
         try
         {
             var wholesaler = new Wholesaler
@@ -62,7 +62,7 @@ public class AuthService(UserManager<ApplicationUser> userManager, AppDbContext 
                 Address = dto.WholesalerAddress
             };
             _context.Wholesalers.Add(wholesaler);
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(ct);
 
             var user = new ApplicationUser
             {
@@ -79,11 +79,11 @@ public class AuthService(UserManager<ApplicationUser> userManager, AppDbContext 
                 throw new BusinessException(string.Join("; ", result.Errors.Select(e => e.Description)));
 
             await _userManager.AddToRoleAsync(user, "Wholesaler");
-            await transaction.CommitAsync();
+            await transaction.CommitAsync(ct);
         }
         catch
         {
-            await transaction.RollbackAsync();
+            await transaction.RollbackAsync(ct);
             throw;
         }
     }

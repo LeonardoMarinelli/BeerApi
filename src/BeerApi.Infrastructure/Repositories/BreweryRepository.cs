@@ -9,12 +9,12 @@ public class BreweryRepository(AppDbContext context) : IBreweryRepository
 {
     private readonly AppDbContext _context = context;
 
-    public async Task<IEnumerable<Brewery>> GetAllAsync() =>
-        await _context.Breweries.AsNoTracking().ToListAsync();
+    public async Task<IEnumerable<Brewery>> GetAllAsync(CancellationToken ct = default) =>
+        await _context.Breweries.AsNoTracking().ToListAsync(ct);
 
-    public async Task<Brewery?> GetByIdAsync(int id) =>
-        await _context.Breweries.FindAsync(id);
+    public async Task<Brewery?> GetByIdAsync(int id, CancellationToken ct = default) =>
+        await _context.Breweries.FindAsync([id], ct);
 
-    public async Task<bool> ExistsAsync(int id) =>
-        await _context.Breweries.AnyAsync(b => b.Id == id);
+    public async Task<bool> ExistsAsync(int id, CancellationToken ct = default) =>
+        await _context.Breweries.AnyAsync(b => b.Id == id, ct);
 }

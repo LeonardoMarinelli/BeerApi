@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using BeerApi.Api.Middleware;
 using BeerApi.Application.Services;
 using BeerApi.Application.Services.Interfaces;
@@ -12,7 +13,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Serilog;
-using System.Threading.RateLimiting;
 
 {
     var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
@@ -108,6 +108,7 @@ builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
     .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
 
 builder.Services.AddAuthorization();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IBreweryRepository, BreweryRepository>();
 builder.Services.AddScoped<IBeerRepository, BeerRepository>();
 builder.Services.AddScoped<IWholesalerRepository, WholesalerRepository>();

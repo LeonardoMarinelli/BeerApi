@@ -20,17 +20,17 @@ public class AuthController(IAuthService authService) : ControllerBase
 
     [HttpPost("register/brewer")]
     [EnableRateLimiting("auth")]
-    public async Task<IActionResult> RegisterBrewer([FromBody] RegisterBrewerDto dto)
+    public async Task<IActionResult> RegisterBrewer([FromBody] RegisterBrewerDto dto, CancellationToken ct)
     {
-        await _authService.RegisterBrewerAsync(dto);
+        await _authService.RegisterBrewerAsync(dto, ct);
         return Ok(new { message = "Cervejeiro registrado com sucesso. Você já pode fazer login em POST /api/auth/login." });
     }
 
     [HttpPost("register/wholesaler")]
     [EnableRateLimiting("auth")]
-    public async Task<IActionResult> RegisterWholesaler([FromBody] RegisterWholesalerDto dto)
+    public async Task<IActionResult> RegisterWholesaler([FromBody] RegisterWholesalerDto dto, CancellationToken ct)
     {
-        await _authService.RegisterWholesalerAsync(dto);
+        await _authService.RegisterWholesalerAsync(dto, ct);
         return Ok(new { message = "Atacadista registrado com sucesso. Você já pode fazer login em POST /api/auth/login." });
     }
 }

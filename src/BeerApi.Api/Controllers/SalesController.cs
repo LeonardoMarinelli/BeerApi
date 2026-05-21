@@ -15,11 +15,11 @@ public class SalesController(ISaleService saleService, IBeerService beerService)
     private readonly IBeerService _beerService = beerService;
 
     [HttpPost]
-    public async Task<IActionResult> CreateSale([FromBody] CreateSaleDto dto)
+    public async Task<IActionResult> CreateSale([FromBody] CreateSaleDto dto, CancellationToken ct)
     {
         if (!User.IsInRole("Admin"))
         {
-            var beer = await _beerService.GetByIdAsync(dto.BeerId);
+            var beer = await _beerService.GetByIdAsync(dto.BeerId, ct);
             var userBreweryIdClaim = User.FindFirstValue("BreweryId");
 
             if (userBreweryIdClaim is null ||
@@ -30,7 +30,7 @@ public class SalesController(ISaleService saleService, IBeerService beerService)
             }
         }
 
-        var sale = await _saleService.CreateSaleAsync(dto);
+        var sale = await _saleService.CreateSaleAsync(dto, ct);
         return Created($"/api/sales/{sale.Id}", sale);
     }
 }

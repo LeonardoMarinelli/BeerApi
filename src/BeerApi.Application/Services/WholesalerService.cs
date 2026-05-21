@@ -9,15 +9,15 @@ public class WholesalerService(IWholesalerRepository wholesalerRepository) : IWh
 {
     private readonly IWholesalerRepository _wholesalerRepository = wholesalerRepository;
 
-    public async Task<IEnumerable<WholesalerDto>> GetAllAsync()
+    public async Task<IEnumerable<WholesalerDto>> GetAllAsync(CancellationToken ct = default)
     {
-        var wholesalers = await _wholesalerRepository.GetAllAsync();
+        var wholesalers = await _wholesalerRepository.GetAllAsync(ct);
         return wholesalers.Select(w => new WholesalerDto(w.Id, w.Name, w.Address));
     }
 
-    public async Task<IEnumerable<WholesalerBeerDto>> GetStockByWholesalerIdAsync(int wholesalerId)
+    public async Task<IEnumerable<WholesalerBeerDto>> GetStockByWholesalerIdAsync(int wholesalerId, CancellationToken ct = default)
     {
-        var wholesaler = await _wholesalerRepository.GetByIdWithStockAsync(wholesalerId)
+        var wholesaler = await _wholesalerRepository.GetByIdWithStockAsync(wholesalerId, ct)
             ?? throw new NotFoundException("Atacadista", wholesalerId);
 
         return wholesaler.WholesalerBeers.Select(wb =>
@@ -29,12 +29,12 @@ public class WholesalerService(IWholesalerRepository wholesalerRepository) : IWh
                 wb.Quantity));
     }
 
-    public async Task<QuoteResponseDto> GetQuoteAsync(int wholesalerId, QuoteRequestDto request)
+    public async Task<QuoteResponseDto> GetQuoteAsync(int wholesalerId, QuoteRequestDto request, CancellationToken ct = default)
     {
         if (request.Items is null || request.Items.Count == 0)
             throw new BusinessException("O pedido não pode estar vazio.");
 
-        var wholesaler = await _wholesalerRepository.GetByIdWithStockAsync(wholesalerId)
+        var wholesaler = await _wholesalerRepository.GetByIdWithStockAsync(wholesalerId, ct)
             ?? throw new BusinessException($"Atacadista com id '{wholesalerId}' não existe.");
 
         var beerIds = request.Items.Select(i => i.BeerId).ToList();

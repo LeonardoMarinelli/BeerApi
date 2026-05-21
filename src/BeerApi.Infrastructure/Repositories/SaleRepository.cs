@@ -8,9 +8,9 @@ public class SaleRepository(AppDbContext context) : ISaleRepository
 {
     private readonly AppDbContext _context = context;
 
-    public async Task AddAsync(Sale sale)
+    public async Task AddAsync(Sale sale, CancellationToken ct = default)
     {
         _context.Sales.Add(sale);
-        await _context.SaveChangesAsync();
+        await _context.SaveChangesAsync(ct);
     }
 }
