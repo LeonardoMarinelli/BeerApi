@@ -7,21 +7,37 @@ using BeerApi.Infrastructure.Data.Seed;
 using BeerApi.Infrastructure.Identity;
 using BeerApi.Infrastructure.Repositories;
 using BeerApi.Infrastructure.Services;
+using DotNetEnv;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Serilog;
 using System.Threading.RateLimiting;
+
+{
+    var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+    while (dir != null && !File.Exists(Path.Combine(dir.FullName, ".env")))
+        dir = dir.Parent;
+    if (dir != null)
+        Env.Load(Path.Combine(dir.FullName, ".env"));
+}
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Limit request body size to 1 MB to prevent payload-based DoS attacks
-builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 1_048_576);
+builder.Host.UseSerilog((context, services, configuration) =>
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext());
 
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 1_048_576);
 builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
 
-// CORS: restrict to known origins (extend via AllowedOrigins in appsettings for production)
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
         policy.WithOrigins(
@@ -30,7 +46,6 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowAnyMethod()));
 
-// Rate limiting: max 10 requests/minute per IP on auth endpoints
 builder.Services.AddRateLimiter(options =>
 {
     options.AddPolicy("auth", httpContext =>
@@ -74,8 +89,12 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+var connectionString =
+    $"Server={Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost"};" +
+    $"Port={Environment.GetEnvironmentVariable("DB_PORT") ?? "3306"};" +
+    $"Database={Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "beerapi"};" +
+    $"User={Environment.GetEnvironmentVariable("MYSQL_USER") ?? "beerapi_user"};" +
+    $"Password={Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "beerapi_pass"};";
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
@@ -114,6 +133,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseSerilogRequestLogging(options =>
+    options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} → {StatusCode} em {Elapsed:0.0}ms");
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors();
@@ -128,4 +149,15 @@ app.MapGroup("/api/auth")
 
 app.MapControllers();
 
-app.Run();
+try
+{
+    app.Run();
+}
+catch (Exception ex) when (ex is not HostAbortedException)
+{
+    Log.Fatal(ex, "A aplicação encerrou inesperadamente");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

@@ -1,5 +1,6 @@
 .env
 bin/
 obj/
+logs/
 *.user
 .vs/

@@ -31,6 +31,8 @@ As principais funcionalidades são:
 | **MySQL** | 8.0 | Banco de dados relacional |
 | **Docker / Docker Compose** | — | Container do banco de dados |
 | **ASP.NET Core Identity** | 9.x | Autenticação e gerenciamento de usuários |
+| **Serilog** | 8.0 | Structured logging para console e arquivo rolling |
+| **DotNetEnv** | 3.x | Carrega o arquivo `.env` como variáveis de ambiente no startup |
 | **Swashbuckle (Swagger UI)** | 6.9 | Documentação interativa da API |
 
 ### Arquitetura
@@ -60,13 +62,13 @@ BeerApi.Api             ← Controllers, Middleware, Program.cs
 - **EF Core Migrations**: schema versionado, aplicado automaticamente no startup
 - **Seed via `HasData`**: dados das cervejarias, cervejas e atacadistas são parte da migration (reproduzível)
 - **Transações explícitas**: registro de novo usuário (brewer/wholesaler) usa `BeginTransactionAsync` para garantir consistência
-- **Nullable Reference Types** habilitado em todos os projetos
 - **Records para DTOs**: imutabilidade e igualdade estrutural por padrão
 - **Credenciais externalizadas**: banco e admin via `.env` + variáveis de ambiente (nada sensível em arquivos versionados)
 - **Validação de entrada**: `DataAnnotations` em todos os DTOs de entrada — `[ApiController]` rejeita automaticamente com `400` antes de chegar aos serviços
 - **Rate Limiting nativo**: política por IP com janela fixa (10 req/min) aplicada a todos os endpoints de autenticação via `AddRateLimiter` do ASP.NET Core
-- **CORS explícito**: origins permitidas configuráveis via `AllowedOrigins` no `appsettings.json`
 - **Limite de body**: Kestrel configurado para rejeitar bodies acima de 1 MB
+- **Structured Logging com Serilog**: request logging automático por request (método, path, status, tempo), rolling file diário e níveis de log configuráveis por namespace via `appsettings.json`
+- **Configuração via `.env`**: `DotNetEnv` carrega o arquivo `.env` no startup, tornando todas as variáveis disponíveis para o `IConfiguration` do ASP.NET Core
 
 ---
 
@@ -121,28 +123,6 @@ ApplicationUser  *──1  Wholesaler (wholesaler)
 AuditLog  (log de todas as operações de escrita)
 ```
 
-### Dados pré-carregados
-
-**Cervejarias:**
-| ID | Nome | País |
-|----|------|------|
-| 1 | Abbaye de Leffe | Bélgica |
-| 2 | Brasserie Chimay | Bélgica |
-| 3 | Brasserie Duvel Moortgat | Bélgica |
-| 4 | Brouwerij Westmalle | Bélgica |
-| 5 | Brasserie de Rochefort | Bélgica |
-| 6 | Brouwerij Huyghe | Bélgica |
-| 7 | AB InBev | Bélgica |
-
-**Cervejas (16 ao total):** Leffe Blonde, Leffe Brune, Leffe Triple, Chimay Rouge, Chimay Bleue, Chimay Triple, Duvel, Vedett Extra White, Westmalle Dubbel, Westmalle Tripel, Rochefort 6/8/10, Delirium Tremens, Stella Artois, Hoegaarden.
-
-**Atacadistas e estoque inicial:**
-| Atacadista | Cervejas em estoque |
-|---|---|
-| BeerWorld Brussels | Leffe Blonde (50), Chimay Rouge (30), Duvel (40), Stella Artois (100) |
-| Belgian Beer Wholesale | Chimay Bleue (20), Westmalle Tripel (25), Rochefort 10 (15), Delirium Tremens (35) |
-| Drinks & Co Antwerp | Leffe Triple (30), Vedett Extra White (45), Rochefort 8 (20), Hoegaarden (60) |
-
 ---
 
 ## ▶️ Como Rodar
@@ -173,7 +153,7 @@ docker-compose up -d
 Aguarde o container ficar saudável (cerca de 30 segundos na primeira vez):
 
 ```bash
-docker-compose ps   # Status deve ser "healthy"
+docker-compose ps
 ```
 
 ### 3. Rodar a API
@@ -334,6 +314,31 @@ Toda operação que altera o banco de dados (Create, Update, Delete) é registra
 | `Timestamp` | Data e hora UTC da operação |
 | `UserId` | ID do usuário responsável (null para operações de sistema) |
 | `UserEmail` | E-mail do usuário responsável |
+
+---
+
+## 📋 Logs
+
+A aplicação usa **Serilog** para logging estruturado em dois destinos simultâneos.
+
+### Console
+
+Uma linha por request, nível e mensagem:
+
+```
+[10:32:01 INF] HTTP POST /api/auth/login → 200 em 142.3ms
+[10:32:05 INF] HTTP GET /api/breweries → 200 em 18.1ms
+[10:32:07 WRN] Não foi possível encontrar Cerveja com id '99'.
+[10:32:10 ERR] Ocorreu um erro inesperado.
+```
+
+### Arquivo
+
+- **Localização:** `src/BeerApi.Api/logs/beerapi-YYYYMMDD.log`
+- **Rolling diário** — um novo arquivo por dia
+- **Retenção:** últimos 7 arquivos
+- Formato mais detalhado com `SourceContext` e timestamp completo
+- A pasta `logs/` está no `.gitignore` e não é versionada
 
 ---
 
