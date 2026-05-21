@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BeerApi.Api/BeerApi.Api.csproj" />
+    <Project Path="src/BeerApi.Application/BeerApi.Application.csproj" />
+    <Project Path="src/BeerApi.Domain/BeerApi.Domain.csproj" />
+    <Project Path="src/BeerApi.Infrastructure/BeerApi.Infrastructure.csproj" />
+  </Folder>
+</Solution>

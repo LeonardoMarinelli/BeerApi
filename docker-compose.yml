@@ -1,0 +1,31 @@
+# ─────────────────────────────────────────────────────────────
+# BeerApi — MySQL 8.0 database container
+#
+# To change credentials, edit the environment variables below
+# (or use a .env file in this directory — see .env.example).
+# ─────────────────────────────────────────────────────────────
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: beerapi_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secret}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-beerapi}
+      MYSQL_USER: ${MYSQL_USER:-beerapi_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-beerapi_pass}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - beerapi_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "--password=${MYSQL_ROOT_PASSWORD:-root_secret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  beerapi_mysql_data:
+    driver: local

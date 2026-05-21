@@ -1,0 +1,536 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-05-21T00:00:00.000Z",
+  "__export_source": "BeerApi",
+  "resources": [
+
+    {
+      "_id": "wrk_beerapi",
+      "parentId": null,
+      "name": "BeerApi",
+      "description": "Belgian Brewery & Wholesaler Management API — .NET 10 / Clean Architecture",
+      "scope": "collection",
+      "_type": "workspace"
+    },
+
+    {
+      "_id": "env_beerapi",
+      "parentId": "wrk_beerapi",
+      "name": "Local (http://localhost:5157)",
+      "data": {
+        "base_url": "http://localhost:5157",
+        "admin_token": "PASTE_ADMIN_TOKEN_HERE",
+        "brewer_token": "PASTE_BREWER_TOKEN_HERE",
+        "wholesaler_token": "PASTE_WHOLESALER_TOKEN_HERE",
+        "refresh_token": "PASTE_REFRESH_TOKEN_HERE"
+      },
+      "dataPropertyOrder": {
+        "&": ["base_url", "admin_token", "brewer_token", "wholesaler_token", "refresh_token"]
+      },
+      "isPrivate": false,
+      "_type": "environment"
+    },
+
+    {
+      "_id": "jar_beerapi",
+      "parentId": "wrk_beerapi",
+      "name": "Default Jar",
+      "cookies": [],
+      "_type": "cookie_jar"
+    },
+
+    { "_id": "grp_auth",        "parentId": "wrk_beerapi", "name": "🔐 Auth",          "metaSortKey": -7000, "_type": "request_group" },
+    { "_id": "grp_breweries",   "parentId": "wrk_beerapi", "name": "🏭 Breweries",     "metaSortKey": -6000, "_type": "request_group" },
+    { "_id": "grp_beers",       "parentId": "wrk_beerapi", "name": "🍺 Beers (CRUD)",  "metaSortKey": -5000, "_type": "request_group" },
+    { "_id": "grp_sales",       "parentId": "wrk_beerapi", "name": "💰 Sales",         "metaSortKey": -4000, "_type": "request_group" },
+    { "_id": "grp_wholesalers", "parentId": "wrk_beerapi", "name": "🏪 Wholesalers",   "metaSortKey": -3000, "_type": "request_group" },
+    { "_id": "grp_quote_ok",    "parentId": "grp_wholesalers", "name": "Orçamentos — Sucessos",  "metaSortKey": -2000, "_type": "request_group" },
+    { "_id": "grp_quote_err",   "parentId": "grp_wholesalers", "name": "Orçamentos — Erros",     "metaSortKey": -1000, "_type": "request_group" },
+
+
+    {
+      "_id": "req_register_brewer",
+      "parentId": "grp_auth",
+      "name": "1. Register Brewer",
+      "description": "Creates a new user with role=Brewer and a linked Brewery entity.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/register/brewer",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"brewer@leffe.com\",\n  \"password\": \"Brewer@123!\",\n  \"firstName\": \"Jean\",\n  \"lastName\": \"Dupont\",\n  \"breweryName\": \"Micro Brasserie Test\",\n  \"breweryCountry\": \"Belgium\",\n  \"breweryDescription\": \"A small test brewery for the API demo.\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "metaSortKey": -700,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_register_wholesaler",
+      "parentId": "grp_auth",
+      "name": "2. Register Wholesaler",
+      "description": "Creates a new user with role=Wholesaler and a linked Wholesaler entity.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/register/wholesaler",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"buyer@distribution.com\",\n  \"password\": \"Buyer@123!\",\n  \"firstName\": \"Marie\",\n  \"lastName\": \"Durand\",\n  \"wholesalerName\": \"Distribution Test SARL\",\n  \"wholesalerAddress\": \"Rue des Brasseurs 1, 1000 Brussels\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "metaSortKey": -600,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_login_admin",
+      "parentId": "grp_auth",
+      "name": "3. Login — Admin  ⭐",
+      "description": "Copy the accessToken from the response and paste it into the environment variable admin_token.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"admin@beerapi.com\",\n  \"password\": \"Admin@123!\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "metaSortKey": -500,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_login_brewer",
+      "parentId": "grp_auth",
+      "name": "4. Login — Brewer",
+      "description": "Copy the accessToken from the response and paste it into the environment variable brewer_token.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"brewer@leffe.com\",\n  \"password\": \"Brewer@123!\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "metaSortKey": -400,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_login_wholesaler",
+      "parentId": "grp_auth",
+      "name": "5. Login — Wholesaler",
+      "description": "Copy the accessToken from the response and paste it into the environment variable wholesaler_token.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/login",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"buyer@distribution.com\",\n  \"password\": \"Buyer@123!\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "metaSortKey": -300,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_refresh",
+      "parentId": "grp_auth",
+      "name": "6. Refresh Token",
+      "description": "Paste the refreshToken from any Login response into the environment variable refresh_token.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/refresh",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"refreshToken\": \"{{ refresh_token }}\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "metaSortKey": -200,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_logout",
+      "parentId": "grp_auth",
+      "name": "7. Logout",
+      "description": "Invalidates the current session. Send an empty JSON body.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/logout",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -100,
+      "_type": "request"
+    },
+
+
+    {
+      "_id": "req_get_breweries",
+      "parentId": "grp_breweries",
+      "name": "List All Breweries",
+      "description": "Returns the 7 seeded Belgian breweries. Requires any authenticated user.",
+      "method": "GET",
+      "url": "{{ base_url }}/api/breweries",
+      "body": {},
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -300,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_get_brewery_by_id",
+      "parentId": "grp_breweries",
+      "name": "Get Brewery by ID",
+      "description": "IDs 1–7 are seeded. 1=Leffe, 2=Chimay, 3=Duvel, 4=Westmalle, 5=Rochefort, 6=Huyghe, 7=AB InBev.",
+      "method": "GET",
+      "url": "{{ base_url }}/api/breweries/1",
+      "body": {},
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -200,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_get_brewery_beers",
+      "parentId": "grp_breweries",
+      "name": "List Beers of a Brewery",
+      "description": "Brewery 2 = Chimay. Returns Chimay Rouge, Bleue and Triple.",
+      "method": "GET",
+      "url": "{{ base_url }}/api/breweries/2/beers",
+      "body": {},
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -100,
+      "_type": "request"
+    },
+
+
+    {
+      "_id": "req_create_beer",
+      "parentId": "grp_beers",
+      "name": "Create Beer (Admin → Brewery 1)",
+      "description": "Admin can create beers for any brewery. A Brewer can only use their own breweryId from the URL.\n\nBrewery 1 = Abbaye de Leffe. The new beer will get id=17.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/breweries/1/beers",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Leffe Ruby\",\n  \"description\": \"A fruity, refreshing red beer with hints of red fruits and subtle bitterness.\",\n  \"alcoholContent\": 5.0,\n  \"price\": 2.70\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -400,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_update_beer",
+      "parentId": "grp_beers",
+      "name": "Update Beer (Admin → Brewery 1, Beer 17)",
+      "description": "Update the beer created above. Run 'Create Beer' first to ensure beer 17 exists.",
+      "method": "PUT",
+      "url": "{{ base_url }}/api/breweries/1/beers/17",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Leffe Ruby (Updated)\",\n  \"description\": \"Updated description after refinement.\",\n  \"alcoholContent\": 5.0,\n  \"price\": 2.90\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -300,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_delete_beer",
+      "parentId": "grp_beers",
+      "name": "Delete Beer (Admin → Brewery 1, Beer 17)",
+      "description": "Deletes beer 17. Returns 204 No Content on success.",
+      "method": "DELETE",
+      "url": "{{ base_url }}/api/breweries/1/beers/17",
+      "body": {},
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -200,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_create_beer_brewer",
+      "parentId": "grp_beers",
+      "name": "Create Beer (Brewer — own brewery)",
+      "description": "Uses brewer_token. The breweryId in the URL must match the brewery linked to this brewer's account.\n\nAfter registering the brewer above, their brewery will be id=8 (seeds 1–7 are taken). Update the URL if needed.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/breweries/8/beers",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Test Ale\",\n  \"description\": \"A light golden ale with citrus notes.\",\n  \"alcoholContent\": 4.5,\n  \"price\": 3.00\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ brewer_token }}" }
+      ],
+      "metaSortKey": -100,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_create_beer_forbidden",
+      "parentId": "grp_beers",
+      "name": "Create Beer — 403 Forbidden (wrong brewery)",
+      "description": "Brewer token but wrong breweryId → expects 403 Forbidden. The brewer owns brewery 8 but is trying to add a beer to brewery 1.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/breweries/1/beers",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Fake Leffe\",\n  \"description\": \"This should be rejected.\",\n  \"alcoholContent\": 5.0,\n  \"price\": 2.50\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ brewer_token }}" }
+      ],
+      "metaSortKey": -50,
+      "_type": "request"
+    },
+
+
+    {
+      "_id": "req_create_sale",
+      "parentId": "grp_sales",
+      "name": "Create Sale (Admin) — Duvel to BeerWorld Brussels",
+      "description": "Sells 10 units of Duvel (beerId=7, breweryId=3) to BeerWorld Brussels (wholesalerId=1).\nIncrements the wholesaler's stock by the sold quantity.\n\nNote: Admin can sell any brewery's beer. A Brewer can only sell their own brewery's beers.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/sales",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"beerId\": 7,\n  \"wholesalerId\": 1,\n  \"quantity\": 10\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -300,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_create_sale_new_beer",
+      "parentId": "grp_sales",
+      "name": "Create Sale — New beer/wholesaler combo",
+      "description": "Sells Westmalle Dubbel (beerId=9) to Belgian Beer Wholesale (wholesalerId=2).\nThis beer is NOT currently in wholesaler 2's stock, so it creates a new stock entry.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/sales",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"beerId\": 9,\n  \"wholesalerId\": 2,\n  \"quantity\": 30\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -200,
+      "_type": "request"
+    },
+
+
+    {
+      "_id": "req_get_wholesalers",
+      "parentId": "grp_wholesalers",
+      "name": "List All Wholesalers",
+      "description": "Returns the 3 seeded Belgian wholesalers.",
+      "method": "GET",
+      "url": "{{ base_url }}/api/wholesalers",
+      "body": {},
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -200,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_get_wholesaler_stock",
+      "parentId": "grp_wholesalers",
+      "name": "Get Wholesaler Stock (id=1)",
+      "description": "BeerWorld Brussels stock: Leffe Blonde(50), Chimay Rouge(30), Duvel(40), Stella Artois(100). Run 'Create Sale — Duvel' to see the quantity increase.",
+      "method": "GET",
+      "url": "{{ base_url }}/api/wholesalers/1/beers",
+      "body": {},
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -100,
+      "_type": "request"
+    },
+
+
+    {
+      "_id": "req_quote_no_discount",
+      "parentId": "grp_quote_ok",
+      "name": "Quote — Sem desconto (≤10 unidades)",
+      "description": "Total: 3+4=7 unidades → sem desconto.\nBeerWorld Brussels (id=1): Leffe Blonde(id=1) e Chimay Rouge(id=4).",
+      "method": "POST",
+      "url": "{{ base_url }}/api/wholesalers/1/quote",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"items\": [\n    { \"beerId\": 1, \"quantity\": 3 },\n    { \"beerId\": 4, \"quantity\": 4 }\n  ]\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -300,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_quote_10pct",
+      "parentId": "grp_quote_ok",
+      "name": "Quote — 10% desconto (>10 unidades)",
+      "description": "Total: 6+7=13 unidades → 10% de desconto.\nBeerWorld Brussels (id=1): Leffe Blonde(id=1) e Chimay Rouge(id=4).",
+      "method": "POST",
+      "url": "{{ base_url }}/api/wholesalers/1/quote",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"items\": [\n    { \"beerId\": 1, \"quantity\": 6 },\n    { \"beerId\": 4, \"quantity\": 7 }\n  ]\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -200,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_quote_20pct",
+      "parentId": "grp_quote_ok",
+      "name": "Quote — 20% desconto (>20 unidades)",
+      "description": "Total: 10+7+6=23 unidades → 20% de desconto.\nBeerWorld Brussels (id=1): Leffe Blonde(id=1), Chimay Rouge(id=4), Duvel(id=7).",
+      "method": "POST",
+      "url": "{{ base_url }}/api/wholesalers/1/quote",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"items\": [\n    { \"beerId\": 1, \"quantity\": 10 },\n    { \"beerId\": 4, \"quantity\": 7 },\n    { \"beerId\": 7, \"quantity\": 6 }\n  ]\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -100,
+      "_type": "request"
+    },
+
+
+    {
+      "_id": "req_quote_err_empty",
+      "parentId": "grp_quote_err",
+      "name": "Erro — Pedido vazio",
+      "description": "Expects 400: 'The order cannot be empty.'",
+      "method": "POST",
+      "url": "{{ base_url }}/api/wholesalers/1/quote",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"items\": []\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -500,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_quote_err_wholesaler",
+      "parentId": "grp_quote_err",
+      "name": "Erro — Atacadista não existe",
+      "description": "Expects 400: Wholesaler with id '999' does not exist.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/wholesalers/999/quote",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"items\": [\n    { \"beerId\": 1, \"quantity\": 2 }\n  ]\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -400,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_quote_err_duplicate",
+      "parentId": "grp_quote_err",
+      "name": "Erro — Duplicatas no pedido",
+      "description": "Expects 400: 'The order cannot contain duplicate beers.' (beerId=1 appears twice).",
+      "method": "POST",
+      "url": "{{ base_url }}/api/wholesalers/1/quote",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"items\": [\n    { \"beerId\": 1, \"quantity\": 3 },\n    { \"beerId\": 1, \"quantity\": 5 }\n  ]\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -300,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_quote_err_stock",
+      "parentId": "grp_quote_err",
+      "name": "Erro — Quantidade excede estoque",
+      "description": "Expects 400: Requested quantity exceeds available stock.\nWholesaler 1 has only 50 units of Leffe Blonde (id=1), requesting 999.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/wholesalers/1/quote",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"items\": [\n    { \"beerId\": 1, \"quantity\": 999 }\n  ]\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -200,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_quote_err_not_sold",
+      "parentId": "grp_quote_err",
+      "name": "Erro — Cerveja não vendida por este atacadista",
+      "description": "Expects 400: Beer with id '5' is not sold by this wholesaler.\nWholesaler 1 (BeerWorld Brussels) does NOT stock Chimay Bleue (id=5) — that's in wholesaler 2.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/wholesalers/1/quote",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"items\": [\n    { \"beerId\": 5, \"quantity\": 2 }\n  ]\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -100,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_quote_err_unauthenticated",
+      "parentId": "grp_quote_err",
+      "name": "Erro — Sem token (401)",
+      "description": "Expects 401 Unauthorized. No Authorization header.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/wholesalers/1/quote",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"items\": [\n    { \"beerId\": 1, \"quantity\": 2 }\n  ]\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "metaSortKey": -50,
+      "_type": "request"
+    }
+
+  ]
+}
