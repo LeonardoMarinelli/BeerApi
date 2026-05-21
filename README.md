@@ -375,13 +375,6 @@ AdminUser__Password=CHANGE_ME_IN_PRODUCTION
 
 O formato `AdminUser__Password` (duplo underscore) é o padrão do ASP.NET Core para mapear variáveis de ambiente a seções aninhadas do `appsettings.json`.
 
-### `appsettings.json` (outros ajustes)
-
-Origins permitidas para CORS (padrão: `localhost:3000` e `localhost:5173`):
-
-```json
-"AllowedOrigins": ["https://meuapp.com"]
-
 ---
 
 ## 📦 Comandos Úteis
