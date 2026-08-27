@@ -106,4 +106,42 @@ public class SalesControllerTests(CustomWebApplicationFactory factory)
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
+
+    [Fact]
+    public async Task GetAll_AsOwnerBrewer_ReturnsOwnSalesOnly()
+    {
+        var owner = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var ownerBeerId = await CreateBeerAsync(owner);
+        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client);
+        _client.UseBearerToken(owner.AccessToken);
+        await _client.PostAsJsonAsync("/api/sales", new CreateSaleDto(ownerBeerId, wholesaler.WholesalerId, 5));
+
+        var response = await _client.GetAsync("/api/sales");
+        _client.ClearAuthorization();
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var page = await response.Content.ReadFromJsonAsync<PagedResultDto<SaleDto>>();
+        page!.Items.Should().NotBeEmpty();
+        page.Items.Should().OnlyContain(s => s.BeerId == ownerBeerId);
+    }
+
+    [Fact]
+    public async Task GetAll_AsAdmin_ReturnsOk()
+    {
+        var adminToken = await AuthHelper.LoginAsAdminAsync(_client);
+        _client.UseBearerToken(adminToken);
+
+        var response = await _client.GetAsync("/api/sales");
+        _client.ClearAuthorization();
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task GetAll_Unauthenticated_ReturnsUnauthorized()
+    {
+        var response = await _client.GetAsync("/api/sales");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
 }

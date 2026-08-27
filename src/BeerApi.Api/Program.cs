@@ -40,9 +40,7 @@ builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
-        policy.WithOrigins(
-                builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
-                ?? ["http://localhost:3000", "http://localhost:5173"])
+        policy.WithOrigins(builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? [])
             .AllowAnyHeader()
             .AllowAnyMethod()));
 
@@ -102,6 +100,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         ServerVersion.Parse("8.0.0-mysql"),
         mySqlOptions => mySqlOptions.EnableRetryOnFailure()));
 
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
+
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
@@ -113,11 +113,13 @@ builder.Services.AddScoped<IBreweryRepository, BreweryRepository>();
 builder.Services.AddScoped<IBeerRepository, BeerRepository>();
 builder.Services.AddScoped<IWholesalerRepository, WholesalerRepository>();
 builder.Services.AddScoped<ISaleRepository, SaleRepository>();
+builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<IBreweryService, BreweryService>();
 builder.Services.AddScoped<IBeerService, BeerService>();
 builder.Services.AddScoped<IWholesalerService, WholesalerService>();
 builder.Services.AddScoped<ISaleService, SaleService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 var app = builder.Build();
 
@@ -142,6 +144,8 @@ app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapHealthChecks("/health");
 
 app.MapGroup("/api/auth")
     .MapIdentityApi<ApplicationUser>()

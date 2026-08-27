@@ -24,11 +24,11 @@ public class BreweryServiceTests
         {
             new() { Id = 1, Name = "Duvel Moortgat", Country = "Belgium", Description = "desc" }
         };
-        _breweryRepository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(breweries);
+        _breweryRepository.GetAllAsync(1, 20, Arg.Any<CancellationToken>()).Returns((breweries, breweries.Count));
 
-        var result = await _sut.GetAllAsync();
+        var result = await _sut.GetAllAsync(1, 20);
 
-        result.Should().ContainSingle()
+        result.Items.Should().ContainSingle()
             .Which.Name.Should().Be("Duvel Moortgat");
     }
 

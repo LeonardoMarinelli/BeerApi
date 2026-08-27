@@ -13,8 +13,8 @@ public class WholesalersController(IWholesalerService wholesalerService) : Contr
     private readonly IWholesalerService _wholesalerService = wholesalerService;
 
     [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken ct) =>
-        Ok(await _wholesalerService.GetAllAsync(ct));
+    public async Task<IActionResult> GetAll([FromQuery] PaginationQueryDto query, CancellationToken ct) =>
+        Ok(await _wholesalerService.GetAllAsync(query.Page, query.PageSize, ct));
 
     [HttpGet("{id:int}/beers")]
     public async Task<IActionResult> GetStock(int id, CancellationToken ct) =>

@@ -15,8 +15,8 @@ public class BreweriesController(IBreweryService breweryService, IBeerService be
     private readonly IBeerService _beerService = beerService;
 
     [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken ct) =>
-        Ok(await _breweryService.GetAllAsync(ct));
+    public async Task<IActionResult> GetAll([FromQuery] PaginationQueryDto query, CancellationToken ct) =>
+        Ok(await _breweryService.GetAllAsync(query.Page, query.PageSize, ct));
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id, CancellationToken ct) =>

@@ -33,4 +33,20 @@ public class SalesController(ISaleService saleService, IBeerService beerService)
         var sale = await _saleService.CreateSaleAsync(dto, ct);
         return Created($"/api/sales/{sale.Id}", sale);
     }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll([FromQuery] PaginationQueryDto query, CancellationToken ct)
+    {
+        int? breweryId = null;
+        if (!User.IsInRole("Admin"))
+        {
+            var claim = User.FindFirstValue("BreweryId");
+            if (claim is null || !int.TryParse(claim, out var userBreweryId))
+                return Forbid();
+
+            breweryId = userBreweryId;
+        }
+
+        return Ok(await _saleService.GetAllAsync(query.Page, query.PageSize, breweryId, ct));
+    }
 }

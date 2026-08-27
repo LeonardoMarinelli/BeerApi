@@ -69,4 +69,14 @@ public class SaleService(
             wholesaler.Id, wholesaler.Name,
             dto.Quantity, beer.Price, sale.TotalPrice, sale.TaxRate, sale.SaleDate);
     }
+
+    public async Task<PagedResultDto<SaleDto>> GetAllAsync(int page, int pageSize, int? breweryId, CancellationToken ct = default)
+    {
+        var (sales, totalCount) = await _saleRepository.GetAllAsync(page, pageSize, breweryId, ct);
+        var items = sales.Select(s => new SaleDto(
+            s.Id, s.BeerId, s.Beer.Name,
+            s.WholesalerId, s.Wholesaler.Name,
+            s.Quantity, s.PricePerUnit, s.TotalPrice, s.TaxRate, s.SaleDate));
+        return new PagedResultDto<SaleDto>(items, page, pageSize, totalCount);
+    }
 }

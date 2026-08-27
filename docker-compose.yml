@@ -1,10 +1,3 @@
-# ─────────────────────────────────────────────────────────────
-# BeerApi — MySQL 8.0 database container
-#
-# To change credentials, edit the environment variables below
-# (or use a .env file in this directory — see .env.example).
-# ─────────────────────────────────────────────────────────────
-
 services:
   db:
     image: mysql:8.0
@@ -25,6 +18,28 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: src/BeerApi.Api/Dockerfile
+    container_name: beerapi_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 8080
+      DB_HOST: db
+      DB_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-beerapi}
+      MYSQL_USER: ${MYSQL_USER:-beerapi_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-beerapi_pass}
+      AdminUser__Email: ${AdminUser__Email:-admin@beerapi.com}
+      AdminUser__Password: ${AdminUser__Password:-Admin@123!}
+    ports:
+      - "5157:8080"
 
 volumes:
   beerapi_mysql_data:

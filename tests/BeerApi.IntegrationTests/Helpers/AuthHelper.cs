@@ -20,8 +20,8 @@ public static class AuthHelper
 
         var token = await LoginAsync(client, email, TestPassword);
         client.UseBearerToken(token);
-        var breweries = await client.GetFromJsonAsync<List<BreweryDto>>("/api/breweries");
-        var brewery = breweries!.Single(b => b.Name == breweryName);
+        var breweries = await client.GetFromJsonAsync<PagedResultDto<BreweryDto>>("/api/breweries");
+        var brewery = breweries!.Items.Single(b => b.Name == breweryName);
         client.ClearAuthorization();
 
         return new AuthenticatedBrewer(email, TestPassword, brewery.Id, breweryName, token);
@@ -39,8 +39,8 @@ public static class AuthHelper
 
         var token = await LoginAsync(client, email, TestPassword);
         client.UseBearerToken(token);
-        var wholesalers = await client.GetFromJsonAsync<List<WholesalerDto>>("/api/wholesalers");
-        var wholesaler = wholesalers!.Single(w => w.Name == wholesalerName);
+        var wholesalers = await client.GetFromJsonAsync<PagedResultDto<WholesalerDto>>("/api/wholesalers");
+        var wholesaler = wholesalers!.Items.Single(w => w.Name == wholesalerName);
         client.ClearAuthorization();
 
         return new AuthenticatedWholesaler(email, TestPassword, wholesaler.Id, wholesalerName, token);

@@ -9,8 +9,13 @@ public class WholesalerRepository(AppDbContext context) : IWholesalerRepository
 {
     private readonly AppDbContext _context = context;
 
-    public async Task<IEnumerable<Wholesaler>> GetAllAsync(CancellationToken ct = default) =>
-        await _context.Wholesalers.AsNoTracking().ToListAsync(ct);
+    public async Task<(IEnumerable<Wholesaler> Items, int TotalCount)> GetAllAsync(int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = _context.Wholesalers.AsNoTracking().OrderByDescending(w => w.Id);
+        var totalCount = await query.CountAsync(ct);
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        return (items, totalCount);
+    }
 
     public async Task<Wholesaler?> GetByIdAsync(int id, CancellationToken ct = default) =>
         await _context.Wholesalers.FindAsync([id], ct);

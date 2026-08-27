@@ -9,10 +9,11 @@ public class WholesalerService(IWholesalerRepository wholesalerRepository) : IWh
 {
     private readonly IWholesalerRepository _wholesalerRepository = wholesalerRepository;
 
-    public async Task<IEnumerable<WholesalerDto>> GetAllAsync(CancellationToken ct = default)
+    public async Task<PagedResultDto<WholesalerDto>> GetAllAsync(int page, int pageSize, CancellationToken ct = default)
     {
-        var wholesalers = await _wholesalerRepository.GetAllAsync(ct);
-        return wholesalers.Select(w => new WholesalerDto(w.Id, w.Name, w.Address));
+        var (wholesalers, totalCount) = await _wholesalerRepository.GetAllAsync(page, pageSize, ct);
+        var items = wholesalers.Select(w => new WholesalerDto(w.Id, w.Name, w.Address));
+        return new PagedResultDto<WholesalerDto>(items, page, pageSize, totalCount);
     }
 
     public async Task<IEnumerable<WholesalerBeerDto>> GetStockByWholesalerIdAsync(int wholesalerId, CancellationToken ct = default)

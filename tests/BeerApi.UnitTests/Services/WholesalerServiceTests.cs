@@ -38,11 +38,11 @@ public class WholesalerServiceTests
     public async Task GetAllAsync_ReturnsMappedWholesalers()
     {
         var wholesalers = new List<Wholesaler> { new() { Id = 1, Name = "Atacadista", Address = "Rua A" } };
-        _wholesalerRepository.GetAllAsync(Arg.Any<CancellationToken>()).Returns(wholesalers);
+        _wholesalerRepository.GetAllAsync(1, 20, Arg.Any<CancellationToken>()).Returns((wholesalers, wholesalers.Count));
 
-        var result = await _sut.GetAllAsync();
+        var result = await _sut.GetAllAsync(1, 20);
 
-        result.Should().ContainSingle().Which.Name.Should().Be("Atacadista");
+        result.Items.Should().ContainSingle().Which.Name.Should().Be("Atacadista");
     }
 
     [Fact]

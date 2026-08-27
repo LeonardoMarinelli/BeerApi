@@ -114,4 +114,36 @@ public class SaleServiceTests
 
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
+
+    [Fact]
+    public async Task GetAllAsync_MapsSalesFromRepository()
+    {
+        var brewery = new Brewery { Id = 1, Name = "Duvel Moortgat" };
+        var beer = new Beer { Id = 1, Name = "Duvel", Price = 5m, Brewery = brewery, BreweryId = 1 };
+        var wholesaler = new Wholesaler { Id = 1, Name = "Atacadista" };
+        var sales = new List<Sale>
+        {
+            new()
+            {
+                Id = 1, BeerId = 1, Beer = beer, WholesalerId = 1, Wholesaler = wholesaler,
+                Quantity = 10, PricePerUnit = 5m, TotalPrice = 50m
+            }
+        };
+        _saleRepository.GetAllAsync(1, 20, null, Arg.Any<CancellationToken>()).Returns((sales, sales.Count));
+
+        var result = await _sut.GetAllAsync(1, 20, null);
+
+        result.Items.Should().ContainSingle().Which.WholesalerName.Should().Be("Atacadista");
+        result.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetAllAsync_WithBreweryFilter_PassesFilterToRepository()
+    {
+        _saleRepository.GetAllAsync(1, 20, 7, Arg.Any<CancellationToken>()).Returns((new List<Sale>(), 0));
+
+        await _sut.GetAllAsync(1, 20, 7);
+
+        await _saleRepository.Received(1).GetAllAsync(1, 20, 7, Arg.Any<CancellationToken>());
+    }
 }

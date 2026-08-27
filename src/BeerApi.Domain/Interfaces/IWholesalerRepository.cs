@@ -4,7 +4,7 @@ namespace BeerApi.Domain.Interfaces;
 
 public interface IWholesalerRepository
 {
-    Task<IEnumerable<Wholesaler>> GetAllAsync(CancellationToken ct = default);
+    Task<(IEnumerable<Wholesaler> Items, int TotalCount)> GetAllAsync(int page, int pageSize, CancellationToken ct = default);
     Task<Wholesaler?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<Wholesaler?> GetByIdWithStockAsync(int id, CancellationToken ct = default);
     Task<WholesalerBeer?> GetStockEntryAsync(int wholesalerId, int beerId, CancellationToken ct = default);
