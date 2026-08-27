@@ -47,6 +47,7 @@
     { "_id": "grp_wholesalers", "parentId": "wrk_beerapi", "name": "🏪 Wholesalers",   "metaSortKey": -3000, "_type": "request_group" },
     { "_id": "grp_quote_ok",    "parentId": "grp_wholesalers", "name": "Orçamentos — Sucessos",  "metaSortKey": -2000, "_type": "request_group" },
     { "_id": "grp_quote_err",   "parentId": "grp_wholesalers", "name": "Orçamentos — Erros",     "metaSortKey": -1000, "_type": "request_group" },
+    { "_id": "grp_audit",       "parentId": "wrk_beerapi", "name": "🧾 Audit Logs",     "metaSortKey": -500, "_type": "request_group" },
 
 
     {
@@ -169,7 +170,7 @@
       "_id": "req_get_breweries",
       "parentId": "grp_breweries",
       "name": "List All Breweries",
-      "description": "Returns the 7 seeded Belgian breweries. Requires any authenticated user.",
+      "description": "Returns the 7 seeded Belgian breweries (paginated — defaults to page=1&pageSize=20). Requires any authenticated user.",
       "method": "GET",
       "url": "{{ base_url }}/api/breweries",
       "body": {},
@@ -296,6 +297,19 @@
 
 
     {
+      "_id": "req_list_sales",
+      "parentId": "grp_sales",
+      "name": "List Sales",
+      "description": "Paginated sale history (page=1&pageSize=20 by default). Admin sees every sale; a Brewer only sees sales of their own brewery's beers.",
+      "method": "GET",
+      "url": "{{ base_url }}/api/sales",
+      "body": {},
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -400,
+      "_type": "request"
+    },
+
+    {
       "_id": "req_create_sale",
       "parentId": "grp_sales",
       "name": "Create Sale (Admin) — Duvel to BeerWorld Brussels",
@@ -338,7 +352,7 @@
       "_id": "req_get_wholesalers",
       "parentId": "grp_wholesalers",
       "name": "List All Wholesalers",
-      "description": "Returns the 3 seeded Belgian wholesalers.",
+      "description": "Returns the 3 seeded Belgian wholesalers (paginated — defaults to page=1&pageSize=20).",
       "method": "GET",
       "url": "{{ base_url }}/api/wholesalers",
       "body": {},
@@ -354,6 +368,33 @@
       "description": "BeerWorld Brussels stock: Leffe Blonde(50), Chimay Rouge(30), Duvel(40), Stella Artois(100). Run 'Create Sale — Duvel' to see the quantity increase.",
       "method": "GET",
       "url": "{{ base_url }}/api/wholesalers/1/beers",
+      "body": {},
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -100,
+      "_type": "request"
+    },
+
+
+    {
+      "_id": "req_audit_logs",
+      "parentId": "grp_audit",
+      "name": "List Audit Logs (Admin only)",
+      "description": "Paginated audit trail of every Create/Update/Delete in the database. Admin-only — a Brewer or Wholesaler token gets 403 Forbidden.",
+      "method": "GET",
+      "url": "{{ base_url }}/api/audit-logs",
+      "body": {},
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -200,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_audit_logs_filtered",
+      "parentId": "grp_audit",
+      "name": "List Audit Logs — filtered by entity (Beer)",
+      "description": "Same endpoint, filtered to only 'Beer' entity changes via ?entityName=Beer.",
+      "method": "GET",
+      "url": "{{ base_url }}/api/audit-logs?entityName=Beer",
       "body": {},
       "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
       "metaSortKey": -100,
