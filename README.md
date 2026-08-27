@@ -34,6 +34,11 @@ As principais funcionalidades são:
 | **Serilog** | 8.0 | Structured logging para console e arquivo rolling |
 | **DotNetEnv** | 3.x | Carrega o arquivo `.env` como variáveis de ambiente no startup |
 | **Swashbuckle (Swagger UI)** | 6.9 | Documentação interativa da API |
+| **xUnit** | 2.9 | Framework de testes unitários e de integração |
+| **NSubstitute** | 6.x | Mocking de dependências nos testes unitários |
+| **AwesomeAssertions** | 9.x | Assertions fluentes e legíveis nos testes |
+| **Microsoft.AspNetCore.Mvc.Testing** | 10.x | `WebApplicationFactory` para testes de integração in-memory |
+| **Testcontainers.MySql** | 4.x | Container MySQL real e descartável para os testes de integração |
 
 ### Arquitetura
 
@@ -61,7 +66,7 @@ BeerApi.Api             ← Controllers, Middleware, Program.cs
 - **Global Exception Middleware**: respostas de erro padronizadas com HTTP status correto (400, 404, 500), no formato **ProblemDetails** (RFC 9457)
 - **EF Core Migrations**: schema versionado, aplicado automaticamente no startup
 - **Seed via `HasData`**: dados das cervejarias, cervejas e atacadistas são parte da migration (reproduzível)
-- **Transações explícitas**: registro de novo usuário (brewer/wholesaler) e registro de venda (`POST /api/sales`) usam `BeginTransactionAsync` para garantir consistência entre estoque e histórico de vendas
+- **Transações explícitas**: registro de novo usuário (brewer/wholesaler) e registro de venda (`POST /api/sales`) usam `IUnitOfWork.ExecuteInTransactionAsync` (execution strategy do EF Core) para garantir consistência entre estoque e histórico de vendas, mesmo com retry automático habilitado
 - **Records para DTOs**: imutabilidade e igualdade estrutural por padrão
 - **Credenciais externalizadas**: banco e admin via `.env` + variáveis de ambiente (nada sensível em arquivos versionados)
 - **Validação de entrada**: `DataAnnotations` em todos os DTOs de entrada — `[ApiController]` rejeita automaticamente com `400` antes de chegar aos serviços
@@ -79,34 +84,43 @@ BeerApi/
 ├── docker-compose.yml              # Container MySQL 8.0
 ├── .env.example                    # Template de credenciais (copie para .env)
 ├── BeerApi_Insomnia.json           # Collection de testes para o Insomnia
-├── BeerApi.sln
-└── src/
-    ├── BeerApi.Domain/
-    │   ├── Entities/               # Brewery, Beer, Wholesaler, WholesalerBeer, Sale, AuditLog
-    │   ├── Interfaces/             # IBreweryRepository, IBeerRepository, ...
-    │   └── Exceptions/             # BusinessException, NotFoundException
+├── BeerApi.slnx
+├── src/
+│   ├── BeerApi.Domain/
+│   │   ├── Entities/               # Brewery, Beer, Wholesaler, WholesalerBeer, Sale, AuditLog
+│   │   ├── Interfaces/             # IBreweryRepository, IBeerRepository, ...
+│   │   └── Exceptions/             # BusinessException, NotFoundException
+│   │
+│   ├── BeerApi.Application/
+│   │   ├── DTOs/                   # BeerDto, QuoteRequestDto, RegisterBrewerDto, ...
+│   │   └── Services/
+│   │       ├── Interfaces/         # IBeerService, IWholesalerService, ...
+│   │       └── (implementações)    # BeerService, WholesalerService, SaleService, ...
+│   │
+│   ├── BeerApi.Infrastructure/
+│   │   ├── Data/
+│   │   │   ├── AppDbContext.cs     # DbContext com audit log automático
+│   │   │   ├── Configurations/     # Fluent API + HasData (seed)
+│   │   │   ├── Migrations/         # Migrations geradas pelo EF Core
+│   │   │   └── Seed/               # DataSeeder (roles + admin)
+│   │   ├── Identity/               # ApplicationUser, ClaimsPrincipalFactory
+│   │   ├── Repositories/           # Implementações dos repositórios
+│   │   └── Services/               # AuthService
+│   │
+│   └── BeerApi.Api/
+│       ├── Controllers/            # BreweriesController, SalesController, ...
+│       ├── Middleware/             # ExceptionMiddleware
+│       ├── Program.cs
+│       └── appsettings.json
+│
+└── tests/
+    ├── BeerApi.UnitTests/
+    │   └── Services/                # Testes unitários dos serviços de Application (mocks via NSubstitute)
     │
-    ├── BeerApi.Application/
-    │   ├── DTOs/                   # BeerDto, QuoteRequestDto, RegisterBrewerDto, ...
-    │   └── Services/
-    │       ├── Interfaces/         # IBeerService, IWholesalerService, ...
-    │       └── (implementações)    # BeerService, WholesalerService, SaleService, ...
-    │
-    ├── BeerApi.Infrastructure/
-    │   ├── Data/
-    │   │   ├── AppDbContext.cs     # DbContext com audit log automático
-    │   │   ├── Configurations/     # Fluent API + HasData (seed)
-    │   │   ├── Migrations/         # Migrations geradas pelo EF Core
-    │   │   └── Seed/               # DataSeeder (roles + admin)
-    │   ├── Identity/               # ApplicationUser, ClaimsPrincipalFactory
-    │   ├── Repositories/           # Implementações dos repositórios
-    │   └── Services/               # AuthService
-    │
-    └── BeerApi.Api/
-        ├── Controllers/            # BreweriesController, SalesController, ...
-        ├── Middleware/             # ExceptionMiddleware
-        ├── Program.cs
-        └── appsettings.json
+    └── BeerApi.IntegrationTests/
+        ├── Controllers/             # Testes end-to-end via WebApplicationFactory
+        ├── Helpers/                 # AuthHelper (registro/login de usuários de teste)
+        └── CustomWebApplicationFactory.cs  # Sobe um container MySQL real via Testcontainers
 ```
 
 ---
@@ -342,6 +356,34 @@ Uma linha por request, nível e mensagem:
 
 ---
 
+## 🧪 Testes Automatizados
+
+O projeto conta com duas suítes de testes automatizados, em `tests/`:
+
+| Suíte | Tecnologias | O que cobre |
+|---|---|---|
+| **BeerApi.UnitTests** | xUnit, NSubstitute, AwesomeAssertions | Regras de negócio dos serviços de `Application` (`BeerService`, `BreweryService`, `SaleService`, `WholesalerService`), com repositórios mockados |
+| **BeerApi.IntegrationTests** | xUnit, Microsoft.AspNetCore.Mvc.Testing, Testcontainers.MySql | Fluxo HTTP completo (autenticação, cervejarias, vendas, atacadistas) contra uma API real em memória e um banco MySQL real e descartável |
+
+### Pré-requisitos para os testes de integração
+
+Os testes de integração sobem um container MySQL real via [Testcontainers](https://testcontainers.com/), portanto o **Docker Desktop precisa estar em execução**. Os testes unitários não precisam de Docker.
+
+### Rodando os testes
+
+```bash
+# Todos os testes (unitários + integração)
+dotnet test
+
+# Somente testes unitários (rápidos, sem Docker)
+dotnet test tests/BeerApi.UnitTests
+
+# Somente testes de integração (requer Docker em execução)
+dotnet test tests/BeerApi.IntegrationTests
+```
+
+---
+
 ## 🧪 Testando com o Insomnia
 
 O arquivo `BeerApi_Insomnia.json` na raiz do projeto contém uma collection completa para importar no [Insomnia](https://insomnia.rest):
@@ -402,4 +444,7 @@ dotnet ef migrations remove \
 
 # Build completo
 dotnet build
+
+# Rodar todos os testes
+dotnet test
 ```

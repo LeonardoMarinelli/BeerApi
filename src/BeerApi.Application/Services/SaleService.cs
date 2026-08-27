@@ -28,8 +28,9 @@ public class SaleService(
         if (dto.Quantity <= 0)
             throw new BusinessException("A quantidade da venda deve ser maior que zero.");
 
-        await _unitOfWork.BeginTransactionAsync(ct);
-        try
+        Sale sale = null!;
+
+        await _unitOfWork.ExecuteInTransactionAsync(async () =>
         {
             var stockEntry = await _wholesalerRepository.GetStockEntryAsync(dto.WholesalerId, dto.BeerId, ct);
             if (stockEntry is null)
@@ -48,7 +49,7 @@ public class SaleService(
                 await _wholesalerRepository.UpdateStockEntryAsync(stockEntry, ct);
             }
 
-            var sale = new Sale
+            sale = new Sale
             {
                 BreweryId = beer.BreweryId,
                 WholesalerId = dto.WholesalerId,
@@ -61,17 +62,11 @@ public class SaleService(
             };
 
             await _saleRepository.AddAsync(sale, ct);
-            await _unitOfWork.CommitAsync(ct);
+        }, ct);
 
-            return new SaleDto(
-                sale.Id, beer.Id, beer.Name,
-                wholesaler.Id, wholesaler.Name,
-                dto.Quantity, beer.Price, sale.TotalPrice, sale.TaxRate, sale.SaleDate);
-        }
-        catch
-        {
-            await _unitOfWork.RollbackAsync(ct);
-            throw;
-        }
+        return new SaleDto(
+            sale.Id, beer.Id, beer.Name,
+            wholesaler.Id, wholesaler.Name,
+            dto.Quantity, beer.Price, sale.TotalPrice, sale.TaxRate, sale.SaleDate);
     }
 }

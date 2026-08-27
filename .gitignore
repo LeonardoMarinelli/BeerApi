@@ -4,3 +4,7 @@ obj/
 logs/
 *.user
 .vs/
+TestResults/
+
+appsettings.json
+appsettings.*.json

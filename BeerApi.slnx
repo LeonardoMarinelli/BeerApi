@@ -5,4 +5,8 @@
     <Project Path="src/BeerApi.Domain/BeerApi.Domain.csproj" />
     <Project Path="src/BeerApi.Infrastructure/BeerApi.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BeerApi.UnitTests/BeerApi.UnitTests.csproj" />
+    <Project Path="tests/BeerApi.IntegrationTests/BeerApi.IntegrationTests.csproj" />
+  </Folder>
 </Solution>

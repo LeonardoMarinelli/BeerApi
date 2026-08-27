@@ -5,6 +5,7 @@ using BeerApi.Domain.Exceptions;
 using BeerApi.Infrastructure.Data;
 using BeerApi.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace BeerApi.Infrastructure.Services;
 
@@ -13,78 +14,80 @@ public class AuthService(UserManager<ApplicationUser> userManager, AppDbContext 
     private readonly UserManager<ApplicationUser> _userManager = userManager;
     private readonly AppDbContext _context = context;
 
-    public async Task RegisterBrewerAsync(RegisterBrewerDto dto, CancellationToken ct = default)
-    {
-        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
-        try
+    public Task RegisterBrewerAsync(RegisterBrewerDto dto, CancellationToken ct = default) =>
+        _context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
-            var brewery = new Brewery
+            await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+            try
             {
-                Name = dto.BreweryName,
-                Country = dto.BreweryCountry,
-                Description = dto.BreweryDescription
-            };
-            _context.Breweries.Add(brewery);
-            await _context.SaveChangesAsync(ct);
+                var brewery = new Brewery
+                {
+                    Name = dto.BreweryName,
+                    Country = dto.BreweryCountry,
+                    Description = dto.BreweryDescription
+                };
+                _context.Breweries.Add(brewery);
+                await _context.SaveChangesAsync(ct);
 
-            var user = new ApplicationUser
+                var user = new ApplicationUser
+                {
+                    UserName = dto.Email,
+                    Email = dto.Email,
+                    FirstName = dto.FirstName,
+                    LastName = dto.LastName,
+                    EmailConfirmed = true,
+                    BreweryId = brewery.Id
+                };
+
+                var result = await _userManager.CreateAsync(user, dto.Password);
+                if (!result.Succeeded)
+                    throw new BusinessException(string.Join("; ", result.Errors.Select(e => e.Description)));
+
+                await _userManager.AddToRoleAsync(user, "Brewer");
+                await transaction.CommitAsync(ct);
+            }
+            catch
             {
-                UserName = dto.Email,
-                Email = dto.Email,
-                FirstName = dto.FirstName,
-                LastName = dto.LastName,
-                EmailConfirmed = true,
-                BreweryId = brewery.Id
-            };
+                await transaction.RollbackAsync(ct);
+                throw;
+            }
+        });
 
-            var result = await _userManager.CreateAsync(user, dto.Password);
-            if (!result.Succeeded)
-                throw new BusinessException(string.Join("; ", result.Errors.Select(e => e.Description)));
-
-            await _userManager.AddToRoleAsync(user, "Brewer");
-            await transaction.CommitAsync(ct);
-        }
-        catch
+    public Task RegisterWholesalerAsync(RegisterWholesalerDto dto, CancellationToken ct = default) =>
+        _context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
-            await transaction.RollbackAsync(ct);
-            throw;
-        }
-    }
-
-    public async Task RegisterWholesalerAsync(RegisterWholesalerDto dto, CancellationToken ct = default)
-    {
-        await using var transaction = await _context.Database.BeginTransactionAsync(ct);
-        try
-        {
-            var wholesaler = new Wholesaler
+            await using var transaction = await _context.Database.BeginTransactionAsync(ct);
+            try
             {
-                Name = dto.WholesalerName,
-                Address = dto.WholesalerAddress
-            };
-            _context.Wholesalers.Add(wholesaler);
-            await _context.SaveChangesAsync(ct);
+                var wholesaler = new Wholesaler
+                {
+                    Name = dto.WholesalerName,
+                    Address = dto.WholesalerAddress
+                };
+                _context.Wholesalers.Add(wholesaler);
+                await _context.SaveChangesAsync(ct);
 
-            var user = new ApplicationUser
+                var user = new ApplicationUser
+                {
+                    UserName = dto.Email,
+                    Email = dto.Email,
+                    FirstName = dto.FirstName,
+                    LastName = dto.LastName,
+                    EmailConfirmed = true,
+                    WholesalerId = wholesaler.Id
+                };
+
+                var result = await _userManager.CreateAsync(user, dto.Password);
+                if (!result.Succeeded)
+                    throw new BusinessException(string.Join("; ", result.Errors.Select(e => e.Description)));
+
+                await _userManager.AddToRoleAsync(user, "Wholesaler");
+                await transaction.CommitAsync(ct);
+            }
+            catch
             {
-                UserName = dto.Email,
-                Email = dto.Email,
-                FirstName = dto.FirstName,
-                LastName = dto.LastName,
-                EmailConfirmed = true,
-                WholesalerId = wholesaler.Id
-            };
-
-            var result = await _userManager.CreateAsync(user, dto.Password);
-            if (!result.Succeeded)
-                throw new BusinessException(string.Join("; ", result.Errors.Select(e => e.Description)));
-
-            await _userManager.AddToRoleAsync(user, "Wholesaler");
-            await transaction.CommitAsync(ct);
-        }
-        catch
-        {
-            await transaction.RollbackAsync(ct);
-            throw;
-        }
-    }
+                await transaction.RollbackAsync(ct);
+                throw;
+            }
+        });
 }
