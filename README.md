@@ -29,7 +29,7 @@ As principais funcionalidades são:
 | **Entity Framework Core** | 9.x | ORM |
 | **Pomelo.EntityFrameworkCore.MySql** | 9.0.0 | Provider MySQL para EF Core |
 | **MySQL** | 8.0 | Banco de dados relacional |
-| **Docker / Docker Compose** | — | Container do banco de dados |
+| **Docker / Docker Compose** | — | Container do banco de dados (e, opcionalmente, da própria API) |
 | **ASP.NET Core Identity** | 9.x | Autenticação e gerenciamento de usuários |
 | **Serilog** | 8.0 | Structured logging para console e arquivo rolling |
 | **DotNetEnv** | 3.x | Carrega o arquivo `.env` como variáveis de ambiente no startup |
@@ -74,6 +74,9 @@ BeerApi.Api             ← Controllers, Middleware, Program.cs
 - **Limite de body**: Kestrel configurado para rejeitar bodies acima de 1 MB
 - **Structured Logging com Serilog**: request logging automático por request (método, path, status, tempo), rolling file diário e níveis de log configuráveis por namespace via `appsettings.json`
 - **Configuração via `.env`**: `DotNetEnv` carrega o arquivo `.env` no startup, tornando todas as variáveis disponíveis para o `IConfiguration` do ASP.NET Core
+- **Paginação**: listagens (`GET /api/breweries`, `/api/wholesalers`, `/api/sales`, `/api/audit-logs`) retornam um envelope `{ items, page, pageSize, totalCount, totalPages }` via `?page=&pageSize=`
+- **Health check**: endpoint público `GET /health` verifica a conectividade com o banco de dados
+- **CI**: workflow do GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) roda build + testes unitários em cada pull request para `main`
 
 ---
 
@@ -81,10 +84,11 @@ BeerApi.Api             ← Controllers, Middleware, Program.cs
 
 ```
 BeerApi/
-├── docker-compose.yml              # Container MySQL 8.0
+├── docker-compose.yml              # Container MySQL 8.0 (+ serviço opcional da API)
 ├── .env.example                    # Template de credenciais (copie para .env)
 ├── BeerApi_Insomnia.json           # Collection de testes para o Insomnia
 ├── BeerApi.slnx
+├── .github/workflows/ci.yml         # CI: build + testes unitários
 ├── src/
 │   ├── BeerApi.Domain/
 │   │   ├── Entities/               # Brewery, Beer, Wholesaler, WholesalerBeer, Sale, AuditLog
@@ -108,8 +112,9 @@ BeerApi/
 │   │   └── Services/               # AuthService
 │   │
 │   └── BeerApi.Api/
-│       ├── Controllers/            # BreweriesController, SalesController, ...
+│       ├── Controllers/            # BreweriesController, SalesController, AuditLogsController, ...
 │       ├── Middleware/             # ExceptionMiddleware
+│       ├── Dockerfile
 │       ├── Program.cs
 │       └── appsettings.json
 │
@@ -158,19 +163,29 @@ cp .env.example .env
 
 O arquivo `.env` controla as credenciais do MySQL. Os valores padrão funcionam sem alterações para desenvolvimento local.
 
-### 2. Subir o banco de dados
+### 2. Subir o banco de dados (e, opcionalmente, a API)
+
+**Opção A — só o banco (rodar a API localmente com `dotnet run`, útil para debugar/editar código):**
 
 ```bash
-docker-compose up -d
+docker-compose up -d db
 ```
 
-Aguarde o container ficar saudável (cerca de 30 segundos na primeira vez):
+**Opção B — tudo em containers (banco + API), sem precisar do .NET SDK instalado:**
+
+```bash
+docker-compose up -d --build
+```
+
+Aguarde o container do banco ficar saudável (cerca de 30 segundos na primeira vez):
 
 ```bash
 docker-compose ps
 ```
 
-### 3. Rodar a API
+Se você usou a Opção B, a API já estará disponível em `http://localhost:5157` — pule para a seção "URLs" abaixo (não é necessário rodar `dotnet run`).
+
+### 3. Rodar a API (Opção A — fora do Docker)
 
 ```bash
 cd src/BeerApi.Api
@@ -184,8 +199,9 @@ Na inicialização, a API:
 
 **URLs:**
 - HTTP: `http://localhost:5157`
-- HTTPS: `https://localhost:7182`
+- HTTPS: `https://localhost:7182` (somente fora do Docker)
 - Swagger UI: `http://localhost:5157/swagger`
+- Health check: `http://localhost:5157/health`
 
 ### 4. Credenciais do Admin
 
@@ -239,6 +255,8 @@ Authorization: Bearer <accessToken>
 
 ## 📡 Endpoints
 
+> Endpoints de listagem (`GET /api/breweries`, `/api/wholesalers`, `/api/sales`, `/api/audit-logs`) aceitam os query params `?page=` (padrão 1) e `?pageSize=` (padrão 20, máximo 100) e retornam o envelope `{ items, page, pageSize, totalCount, totalPages }`.
+
 ### Autenticação
 
 | Método | Rota | Auth | Descrição |
@@ -265,6 +283,7 @@ Authorization: Bearer <accessToken>
 | Método | Rota | Auth | Descrição |
 |--------|------|------|-----------|
 | `POST` | `/api/sales` | Brewer/Admin | Registrar venda de cerveja para um atacadista (incrementa estoque) |
+| `GET` | `/api/sales` | Brewer/Admin | Listar vendas (paginado). Admin vê todas; Brewer só vê vendas da própria cervejaria |
 
 ### Atacadistas e Orçamentos
 
@@ -273,6 +292,18 @@ Authorization: Bearer <accessToken>
 | `GET` | `/api/wholesalers` | Auth | Listar todos os atacadistas |
 | `GET` | `/api/wholesalers/{id}/beers` | Auth | Ver estoque de cervejas do atacadista |
 | `POST` | `/api/wholesalers/{id}/quote` | Auth | Solicitar orçamento |
+
+### Auditoria
+
+| Método | Rota | Auth | Descrição |
+|--------|------|------|-----------|
+| `GET` | `/api/audit-logs` | Admin | Listar log de auditoria (paginado), com filtro opcional `?entityName=` (ex: `Beer`, `Sale`) |
+
+### Infraestrutura
+
+| Método | Rota | Auth | Descrição |
+|--------|------|------|-----------|
+| `GET` | `/health` | Público | Health check da API e da conectividade com o banco de dados |
 
 ---
 
@@ -329,6 +360,8 @@ Toda operação que altera o banco de dados (Create, Update, Delete) é registra
 | `UserId` | ID do usuário responsável (null para operações de sistema) |
 | `UserEmail` | E-mail do usuário responsável |
 
+Consulte via `GET /api/audit-logs` (somente Admin, paginado, com filtro opcional `?entityName=`).
+
 ---
 
 ## 📋 Logs
@@ -362,8 +395,8 @@ O projeto conta com duas suítes de testes automatizados, em `tests/`:
 
 | Suíte | Tecnologias | O que cobre |
 |---|---|---|
-| **BeerApi.UnitTests** | xUnit, NSubstitute, AwesomeAssertions | Regras de negócio dos serviços de `Application` (`BeerService`, `BreweryService`, `SaleService`, `WholesalerService`), com repositórios mockados |
-| **BeerApi.IntegrationTests** | xUnit, Microsoft.AspNetCore.Mvc.Testing, Testcontainers.MySql | Fluxo HTTP completo (autenticação, cervejarias, vendas, atacadistas) contra uma API real em memória e um banco MySQL real e descartável |
+| **BeerApi.UnitTests** | xUnit, NSubstitute, AwesomeAssertions | Regras de negócio dos serviços de `Application` (`BeerService`, `BreweryService`, `SaleService`, `WholesalerService`, `AuditLogService`), com repositórios mockados |
+| **BeerApi.IntegrationTests** | xUnit, Microsoft.AspNetCore.Mvc.Testing, Testcontainers.MySql | Fluxo HTTP completo (autenticação, cervejarias, vendas, atacadistas, audit logs) contra uma API real em memória e um banco MySQL real e descartável |
 
 ### Pré-requisitos para os testes de integração
 
@@ -393,7 +426,7 @@ O arquivo `BeerApi_Insomnia.json` na raiz do projeto contém uma collection comp
 3. Copie o `accessToken` e cole na variável de ambiente `admin_token`
 4. Todos os demais requests já estão configurados com `{{ admin_token }}`
 
-A collection inclui casos de teste para todos os erros de orçamento (pedido vazio, duplicatas, estoque insuficiente, etc.).
+A collection inclui casos de teste para todos os erros de orçamento (pedido vazio, duplicatas, estoque insuficiente, etc.), além de requests para listar vendas paginadas (**💰 Sales → List Sales**) e consultar o log de auditoria (**🧾 Audit Logs**).
 
 ---
 
@@ -417,19 +450,37 @@ AdminUser__Password=CHANGE_ME_IN_PRODUCTION
 
 O formato `AdminUser__Password` (duplo underscore) é o padrão do ASP.NET Core para mapear variáveis de ambiente a seções aninhadas do `appsettings.json`.
 
+### CORS (`AllowedOrigins`)
+
+As origens permitidas não são mais fixas no código — vem de configuração (`appsettings.{Environment}.json` ou variável de ambiente):
+
+```json
+{
+  "AllowedOrigins": [ "http://localhost:3000", "http://localhost:5173" ]
+}
+```
+
+Em desenvolvimento (`appsettings.Development.json`), já vem pré-configurado para os dev servers típicos de front-end (React/Vite). Em produção, defina as origens reais do seu front-end (por padrão, nenhuma origem é permitida).
+
 ---
 
 ## 📦 Comandos Úteis
 
 ```bash
 # Subir banco
-docker-compose up -d
+docker-compose up -d db
 
-# Parar banco
+# Subir banco + API em containers
+docker-compose up -d --build
+
+# Parar tudo
 docker-compose down
 
 # Remover banco e dados persistidos
 docker-compose down -v
+
+# Checar saúde da API
+curl http://localhost:5157/health
 
 # Adicionar nova migration
 dotnet ef migrations add NomeDaMigration \
