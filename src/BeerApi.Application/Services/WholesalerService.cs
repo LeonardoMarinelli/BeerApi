@@ -1,11 +1,10 @@
 using BeerApi.Application.DTOs;
-using BeerApi.Application.Services.Interfaces;
 using BeerApi.Domain.Exceptions;
 using BeerApi.Domain.Interfaces;
 
 namespace BeerApi.Application.Services;
 
-public class WholesalerService(IWholesalerRepository wholesalerRepository) : IWholesalerService
+public class WholesalerService(IWholesalerRepository wholesalerRepository)
 {
     private readonly IWholesalerRepository _wholesalerRepository = wholesalerRepository;
 

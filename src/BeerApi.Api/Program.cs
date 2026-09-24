@@ -1,7 +1,6 @@
 using System.Threading.RateLimiting;
 using BeerApi.Api.Middleware;
 using BeerApi.Application.Services;
-using BeerApi.Application.Services.Interfaces;
 using BeerApi.Domain.Interfaces;
 using BeerApi.Infrastructure.Data;
 using BeerApi.Infrastructure.Data.Seed;
@@ -114,12 +113,12 @@ builder.Services.AddScoped<IBeerRepository, BeerRepository>();
 builder.Services.AddScoped<IWholesalerRepository, WholesalerRepository>();
 builder.Services.AddScoped<ISaleRepository, SaleRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
-builder.Services.AddScoped<IBreweryService, BreweryService>();
-builder.Services.AddScoped<IBeerService, BeerService>();
-builder.Services.AddScoped<IWholesalerService, WholesalerService>();
-builder.Services.AddScoped<ISaleService, SaleService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<BreweryService>();
+builder.Services.AddScoped<BeerService>();
+builder.Services.AddScoped<WholesalerService>();
+builder.Services.AddScoped<SaleService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<AuditLogService>();
 
 var app = builder.Build();
 

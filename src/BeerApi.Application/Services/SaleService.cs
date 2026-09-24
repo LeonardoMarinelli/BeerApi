@@ -1,5 +1,4 @@
 using BeerApi.Application.DTOs;
-using BeerApi.Application.Services.Interfaces;
 using BeerApi.Domain.Entities;
 using BeerApi.Domain.Exceptions;
 using BeerApi.Domain.Interfaces;
@@ -10,7 +9,7 @@ public class SaleService(
     IBeerRepository beerRepository,
     IWholesalerRepository wholesalerRepository,
     ISaleRepository saleRepository,
-    IUnitOfWork unitOfWork) : ISaleService
+    IUnitOfWork unitOfWork)
 {
     private readonly IBeerRepository _beerRepository = beerRepository;
     private readonly IWholesalerRepository _wholesalerRepository = wholesalerRepository;

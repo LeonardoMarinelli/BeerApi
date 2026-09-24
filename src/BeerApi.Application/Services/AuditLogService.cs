@@ -1,10 +1,9 @@
 using BeerApi.Application.DTOs;
-using BeerApi.Application.Services.Interfaces;
 using BeerApi.Domain.Interfaces;
 
 namespace BeerApi.Application.Services;
 
-public class AuditLogService(IAuditLogRepository repository) : IAuditLogService
+public class AuditLogService(IAuditLogRepository repository)
 {
     private readonly IAuditLogRepository _repository = repository;
 
