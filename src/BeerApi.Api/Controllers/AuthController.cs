@@ -1,5 +1,5 @@
 using BeerApi.Application.DTOs;
-using BeerApi.Application.Services.Interfaces;
+using BeerApi.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -14,9 +14,9 @@ namespace BeerApi.Api.Controllers;
 [ApiController]
 [Route("api/auth")]
 [AllowAnonymous]
-public class AuthController(IAuthService authService) : ControllerBase
+public class AuthController(AuthService authService) : ControllerBase
 {
-    private readonly IAuthService _authService = authService;
+    private readonly AuthService _authService = authService;
 
     [HttpPost("register/brewer")]
     [EnableRateLimiting("auth")]

@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using BeerApi.Application.DTOs;
-using BeerApi.Application.Services.Interfaces;
+using BeerApi.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,10 +9,10 @@ namespace BeerApi.Api.Controllers;
 [ApiController]
 [Route("api/breweries")]
 [Authorize]
-public class BreweriesController(IBreweryService breweryService, IBeerService beerService) : ControllerBase
+public class BreweriesController(BreweryService breweryService, BeerService beerService) : ControllerBase
 {
-    private readonly IBreweryService _breweryService = breweryService;
-    private readonly IBeerService _beerService = beerService;
+    private readonly BreweryService _breweryService = breweryService;
+    private readonly BeerService _beerService = beerService;
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] PaginationQueryDto query, CancellationToken ct) =>

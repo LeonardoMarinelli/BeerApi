@@ -1,5 +1,5 @@
 using BeerApi.Application.DTOs;
-using BeerApi.Application.Services.Interfaces;
+using BeerApi.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,9 +8,9 @@ namespace BeerApi.Api.Controllers;
 [ApiController]
 [Route("api/audit-logs")]
 [Authorize(Roles = "Admin")]
-public class AuditLogsController(IAuditLogService auditLogService) : ControllerBase
+public class AuditLogsController(AuditLogService auditLogService) : ControllerBase
 {
-    private readonly IAuditLogService _auditLogService = auditLogService;
+    private readonly AuditLogService _auditLogService = auditLogService;
 
     [HttpGet]
     public async Task<IActionResult> GetAll(

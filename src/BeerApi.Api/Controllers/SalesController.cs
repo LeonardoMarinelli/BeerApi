@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using BeerApi.Application.DTOs;
-using BeerApi.Application.Services.Interfaces;
+using BeerApi.Application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,10 +9,10 @@ namespace BeerApi.Api.Controllers;
 [ApiController]
 [Route("api/sales")]
 [Authorize(Roles = "Brewer,Admin")]
-public class SalesController(ISaleService saleService, IBeerService beerService) : ControllerBase
+public class SalesController(SaleService saleService, BeerService beerService) : ControllerBase
 {
-    private readonly ISaleService _saleService = saleService;
-    private readonly IBeerService _beerService = beerService;
+    private readonly SaleService _saleService = saleService;
+    private readonly BeerService _beerService = beerService;
 
     [HttpPost]
     public async Task<IActionResult> CreateSale([FromBody] CreateSaleDto dto, CancellationToken ct)

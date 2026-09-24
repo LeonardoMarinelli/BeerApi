@@ -1,5 +1,4 @@
 using BeerApi.Application.DTOs;
-using BeerApi.Application.Services.Interfaces;
 using BeerApi.Domain.Entities;
 using BeerApi.Domain.Exceptions;
 using BeerApi.Infrastructure.Data;
@@ -9,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BeerApi.Infrastructure.Services;
 
-public class AuthService(UserManager<ApplicationUser> userManager, AppDbContext context) : IAuthService
+public class AuthService(UserManager<ApplicationUser> userManager, AppDbContext context)
 {
     private readonly UserManager<ApplicationUser> _userManager = userManager;
     private readonly AppDbContext _context = context;
