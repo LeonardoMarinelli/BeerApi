@@ -27,6 +27,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<WholesalerBeer> WholesalerBeers => Set<WholesalerBeer>();
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -64,7 +65,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
         foreach (var entry in ChangeTracker.Entries())
         {
-            if (entry.Entity is AuditLog) continue;
+            if (entry.Entity is AuditLog or RefreshToken) continue;
             if (entry.State is EntityState.Detached or EntityState.Unchanged) continue;
 
             var action = entry.State switch

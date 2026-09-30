@@ -19,6 +19,29 @@ services:
       retries: 5
       start_period: 30s
 
+  redis:
+    image: redis:7-alpine
+    container_name: beerapi_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - beerapi_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: beerapi_mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   api:
     build:
       context: .
@@ -28,6 +51,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: 8080
@@ -36,11 +63,33 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE:-beerapi}
       MYSQL_USER: ${MYSQL_USER:-beerapi_user}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-beerapi_pass}
+      REDIS_CONNECTION: redis:6379
+      Cache__Enabled: ${CACHE_ENABLED:-true}
+      App__PublicBaseUrl: ${APP_PUBLIC_BASE_URL:-http://localhost:5157}
+      Smtp__Host: mailpit
+      Smtp__Port: 1025
+      Smtp__FromAddress: no-reply@beerapi.local
       AdminUser__Email: ${AdminUser__Email:-admin@beerapi.com}
       AdminUser__Password: ${AdminUser__Password:-Admin@123!}
     ports:
       - "5157:8080"
 
+  k6:
+    image: grafana/k6:0.55.0
+    profiles: ["loadtest"]
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      BASE_URL: http://api:8080
+      ADMIN_EMAIL: ${AdminUser__Email:-admin@beerapi.com}
+      ADMIN_PASSWORD: ${AdminUser__Password:-Admin@123!}
+    volumes:
+      - ./loadtests/k6:/scripts:ro
+    command: ["run", "/scripts/read-heavy.js"]
+
 volumes:
   beerapi_mysql_data:
+    driver: local
+  beerapi_redis_data:
     driver: local

@@ -7,6 +7,7 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -25,3 +26,6 @@ jobs:
 
       - name: Unit tests
         run: dotnet test tests/BeerApi.UnitTests --configuration Release --no-build
+
+      - name: Integration tests
+        run: dotnet test tests/BeerApi.IntegrationTests --configuration Release --no-build

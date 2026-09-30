@@ -1,5 +1,5 @@
 using BeerApi.Application.DTOs;
-using BeerApi.Application.Services;
+using BeerApi.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,9 +8,9 @@ namespace BeerApi.Api.Controllers;
 [ApiController]
 [Route("api/wholesalers")]
 [Authorize]
-public class WholesalersController(WholesalerService wholesalerService) : ControllerBase
+public class WholesalersController(IWholesalerService wholesalerService) : ControllerBase
 {
-    private readonly WholesalerService _wholesalerService = wholesalerService;
+    private readonly IWholesalerService _wholesalerService = wholesalerService;
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] PaginationQueryDto query, CancellationToken ct) =>
