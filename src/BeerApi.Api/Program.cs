@@ -17,7 +17,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
+using Scalar.AspNetCore;
 using Serilog;
 
 {
@@ -65,33 +66,30 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
+builder.Services.AddOpenApi("v1", options => options.AddDocumentTransformer((document, _, _) =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo
+    document.Info = new OpenApiInfo
     {
         Title = "BeerApi",
         Version = "v1",
         Description = "Belgian brewery & wholesaler management API"
-    });
+    };
 
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    var components = document.Components ??= new OpenApiComponents();
+    var securitySchemes = components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+    securitySchemes["Bearer"] = new OpenApiSecurityScheme
     {
         Type = SecuritySchemeType.Http,
         Scheme = "bearer",
         Description = "Paste the bearer access token obtained from POST /api/auth/login"
-    });
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    };
+    var securityRequirements = document.Security ??= new List<OpenApiSecurityRequirement>();
+    securityRequirements.Add(new OpenApiSecurityRequirement
     {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-            },
-            Array.Empty<string>()
-        }
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
     });
-});
+    return Task.CompletedTask;
+}));
 
 var connectionString =
     $"Server={Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost"};" +
@@ -196,8 +194,10 @@ using (var scope = app.Services.CreateScope())
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi();
+    app.MapScalarApiReference(options => options
+        .WithTitle("BeerApi")
+        .AddPreferredSecuritySchemes("Bearer"));
 }
 
 app.UseSerilogRequestLogging(options =>
