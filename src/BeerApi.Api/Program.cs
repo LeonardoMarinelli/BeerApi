@@ -142,16 +142,14 @@ builder.Services.Configure<IdentityOptions>(options =>
 builder.Services.Configure<BearerTokenOptions>(IdentityConstants.BearerScheme, options =>
     options.BearerTokenExpiration = TimeSpan.FromMinutes(builder.Configuration.GetValue("Auth:AccessTokenMinutes", 15)));
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole("Admin"));
-    options.AddPolicy(AuthorizationPolicies.BrewerOrAdmin, policy => policy.RequireRole("Brewer", "Admin"));
-    options.AddPolicy(AuthorizationPolicies.ManageBrewery, policy =>
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole("Admin"))
+    .AddPolicy(AuthorizationPolicies.BrewerOrAdmin, policy => policy.RequireRole("Brewer", "Admin"))
+    .AddPolicy(AuthorizationPolicies.ManageBrewery, policy =>
     {
         policy.RequireRole("Brewer", "Admin");
         policy.AddRequirements(new BreweryOwnerRequirement());
     });
-});
 builder.Services.AddSingleton<IAuthorizationHandler, BreweryOwnerAuthorizationHandler>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IBreweryRepository, BreweryRepository>();
