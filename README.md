@@ -10,12 +10,6 @@ API REST para gestão de cervejarias, cervejas, vendas e estoque de atacadistas.
 - Administradores consultam o log de auditoria.
 - O seed inclui 7 cervejarias belgas, 16 cervejas e 3 atacadistas.
 
-## Demonstração
-
-![Demonstração da interface atual da API](docs/images/swagger-demo.gif)
-
-A captura mostra a interface Swagger usada atualmente em `Development`. Ela será substituída por Scalar com `Microsoft.AspNetCore.OpenApi`; a imagem é apenas uma referência visual temporária.
-
 ## Arquitetura
 
 ```mermaid
@@ -64,6 +58,8 @@ erDiagram
 | MySQL | 8.0 | Persistência relacional |
 | `Microsoft.Extensions.Caching.Hybrid` | 10.10.0 | Cache L1/L2, coalescência de chamadas e tags |
 | `Microsoft.Extensions.Caching.StackExchangeRedis` / Redis | 10.0.11 / 7 | Cache distribuído |
+| `Microsoft.AspNetCore.OpenApi` | 10.0.12 | Geração do documento OpenAPI |
+| `Scalar.AspNetCore` | 2.17.11 | Interface interativa para a documentação da API |
 | ASP.NET Core Identity | — | Usuários, roles e bearer authentication |
 | MailKit / Mailpit | 4.18.1 / — | SMTP e caixa de e-mail local |
 | Serilog | 8.0 | Logs estruturados |
@@ -92,9 +88,10 @@ O Compose inicia MySQL, Redis, Mailpit e API. Endereços locais:
 | API | `http://localhost:5157` |
 | Health check | `http://localhost:5157/health` |
 | Mailpit | `http://localhost:8025` |
-| Swagger atual | `http://localhost:5157/swagger` somente em `Development` |
+| Scalar | `http://localhost:5157/scalar` somente em `Development` |
+| Documento OpenAPI | `http://localhost:5157/openapi/v1.json` somente em `Development` |
 
-O container da API usa `Production`, portanto a interface Swagger não é exposta por esse perfil. Para executá-la localmente em `Development`, suba apenas as dependências e rode a API com o perfil padrão do projeto:
+O container da API usa `Production`, portanto Scalar e o documento OpenAPI não são expostos por esse perfil. Para executá-los localmente em `Development`, suba apenas as dependências e rode a API com o perfil padrão do projeto:
 
 ```powershell
 docker compose up -d db redis mailpit
