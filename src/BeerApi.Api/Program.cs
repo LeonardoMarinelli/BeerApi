@@ -1,14 +1,21 @@
 using System.Threading.RateLimiting;
 using BeerApi.Api.Middleware;
+using BeerApi.Api.HealthChecks;
+using BeerApi.Api.Authorization;
 using BeerApi.Application.Services;
+using BeerApi.Application.Services.Interfaces;
 using BeerApi.Domain.Interfaces;
 using BeerApi.Infrastructure.Data;
 using BeerApi.Infrastructure.Data.Seed;
 using BeerApi.Infrastructure.Identity;
 using BeerApi.Infrastructure.Repositories;
 using BeerApi.Infrastructure.Services;
+using BeerApi.Infrastructure.Services.Cached;
 using DotNetEnv;
+using Microsoft.AspNetCore.Authentication.BearerToken;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -99,14 +106,55 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         ServerVersion.Parse("8.0.0-mysql"),
         mySqlOptions => mySqlOptions.EnableRetryOnFailure()));
 
-builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
+var redisConnectionString = builder.Configuration["REDIS_CONNECTION"]
+    ?? builder.Configuration["Redis:ConnectionString"]
+    ?? $"localhost:{builder.Configuration["REDIS_PORT"] ?? "6379"}";
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnectionString;
+    options.InstanceName = "BeerApi:";
+});
+
+builder.Services.AddHybridCache(options =>
+{
+    options.DefaultEntryOptions = new HybridCacheEntryOptions
+    {
+        Expiration = TimeSpan.FromSeconds(builder.Configuration.GetValue("Cache:ExpirationSeconds", 300)),
+        LocalCacheExpiration = TimeSpan.FromSeconds(builder.Configuration.GetValue("Cache:LocalExpirationSeconds", 30))
+    };
+});
+
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>()
+    .AddCheck<RedisCacheHealthCheck>("redis");
 
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddClaimsPrincipalFactory<ApplicationUserClaimsPrincipalFactory>();
 
-builder.Services.AddAuthorization();
+builder.Services.Configure<IdentityOptions>(options =>
+{
+    options.SignIn.RequireConfirmedEmail = true;
+    options.Lockout.AllowedForNewUsers = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+});
+builder.Services.Configure<BearerTokenOptions>(IdentityConstants.BearerScheme, options =>
+    options.BearerTokenExpiration = TimeSpan.FromMinutes(builder.Configuration.GetValue("Auth:AccessTokenMinutes", 15)));
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole("Admin"));
+    options.AddPolicy(AuthorizationPolicies.BrewerOrAdmin, policy => policy.RequireRole("Brewer", "Admin"));
+    options.AddPolicy(AuthorizationPolicies.ManageBrewery, policy =>
+    {
+        policy.RequireRole("Brewer", "Admin");
+        policy.AddRequirements(new BreweryOwnerRequirement());
+    });
+});
+builder.Services.AddSingleton<IAuthorizationHandler, BreweryOwnerAuthorizationHandler>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IBreweryRepository, BreweryRepository>();
 builder.Services.AddScoped<IBeerRepository, BeerRepository>();
@@ -117,7 +165,24 @@ builder.Services.AddScoped<BreweryService>();
 builder.Services.AddScoped<BeerService>();
 builder.Services.AddScoped<WholesalerService>();
 builder.Services.AddScoped<SaleService>();
+if (builder.Configuration.GetValue("Cache:Enabled", true))
+{
+    builder.Services.AddScoped<IBreweryService, CachedBreweryService>();
+    builder.Services.AddScoped<IBeerService, CachedBeerService>();
+    builder.Services.AddScoped<IWholesalerService, CachedWholesalerService>();
+    builder.Services.AddScoped<ISaleService, CachedSaleService>();
+}
+else
+{
+    builder.Services.AddScoped<IBreweryService>(services => services.GetRequiredService<BreweryService>());
+    builder.Services.AddScoped<IBeerService>(services => services.GetRequiredService<BeerService>());
+    builder.Services.AddScoped<IWholesalerService>(services => services.GetRequiredService<WholesalerService>());
+    builder.Services.AddScoped<ISaleService>(services => services.GetRequiredService<SaleService>());
+}
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<AuthTokenService>();
+builder.Services.AddScoped<IMailSender, SmtpMailSender>();
+builder.Services.AddHostedService<RefreshTokenCleanupService>();
 builder.Services.AddScoped<AuditLogService>();
 
 var app = builder.Build();
@@ -145,11 +210,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");
-
-app.MapGroup("/api/auth")
-    .MapIdentityApi<ApplicationUser>()
-    .WithTags("Auth")
-    .RequireRateLimiting("auth");
 
 app.MapControllers();
 

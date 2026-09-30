@@ -23,10 +23,12 @@
         "admin_token": "PASTE_ADMIN_TOKEN_HERE",
         "brewer_token": "PASTE_BREWER_TOKEN_HERE",
         "wholesaler_token": "PASTE_WHOLESALER_TOKEN_HERE",
-        "refresh_token": "PASTE_REFRESH_TOKEN_HERE"
+        "refresh_token": "PASTE_REFRESH_TOKEN_HERE",
+        "confirmation_url": "PASTE_FULL_CONFIRMATION_URL_HERE",
+        "reset_token": "PASTE_PASSWORD_RESET_TOKEN_HERE"
       },
       "dataPropertyOrder": {
-        "&": ["base_url", "admin_token", "brewer_token", "wholesaler_token", "refresh_token"]
+        "&": ["base_url", "admin_token", "brewer_token", "wholesaler_token", "refresh_token", "confirmation_url", "reset_token"]
       },
       "isPrivate": false,
       "_type": "environment"
@@ -54,7 +56,7 @@
       "_id": "req_register_brewer",
       "parentId": "grp_auth",
       "name": "1. Register Brewer",
-      "description": "Creates a new user with role=Brewer and a linked Brewery entity.",
+      "description": "Creates a Brewer and linked Brewery, then sends an email confirmation link to Mailpit at http://localhost:8025.",
       "method": "POST",
       "url": "{{ base_url }}/api/auth/register/brewer",
       "body": {
@@ -70,7 +72,7 @@
       "_id": "req_register_wholesaler",
       "parentId": "grp_auth",
       "name": "2. Register Wholesaler",
-      "description": "Creates a new user with role=Wholesaler and a linked Wholesaler entity.",
+      "description": "Creates a Wholesaler and linked entity, then sends an email confirmation link to Mailpit at http://localhost:8025.",
       "method": "POST",
       "url": "{{ base_url }}/api/auth/register/wholesaler",
       "body": {
@@ -102,7 +104,7 @@
       "_id": "req_login_brewer",
       "parentId": "grp_auth",
       "name": "4. Login — Brewer",
-      "description": "Copy the accessToken from the response and paste it into the environment variable brewer_token.",
+      "description": "The account must be registered and confirmed first. Copy accessToken and refreshToken from the response.",
       "method": "POST",
       "url": "{{ base_url }}/api/auth/login",
       "body": {
@@ -118,7 +120,7 @@
       "_id": "req_login_wholesaler",
       "parentId": "grp_auth",
       "name": "5. Login — Wholesaler",
-      "description": "Copy the accessToken from the response and paste it into the environment variable wholesaler_token.",
+      "description": "The account must be registered and confirmed first. Copy accessToken and refreshToken from the response.",
       "method": "POST",
       "url": "{{ base_url }}/api/auth/login",
       "body": {
@@ -150,18 +152,92 @@
       "_id": "req_logout",
       "parentId": "grp_auth",
       "name": "7. Logout",
-      "description": "Invalidates the current session. Send an empty JSON body.",
+      "description": "Revokes the refresh-token family for the authenticated user. Use that same user's refreshToken.",
       "method": "POST",
       "url": "{{ base_url }}/api/auth/logout",
       "body": {
         "mimeType": "application/json",
-        "text": "{}"
+        "text": "{\n  \"refreshToken\": \"{{ refresh_token }}\"\n}"
       },
       "headers": [
         { "name": "Content-Type", "value": "application/json" },
         { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
       ],
       "metaSortKey": -100,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_confirm_email",
+      "parentId": "grp_auth",
+      "name": "8. Confirm Email",
+      "description": "Copy the full confirmation link from Mailpit into confirmation_url, then send it.",
+      "method": "GET",
+      "url": "{{ confirmation_url }}",
+      "body": {},
+      "headers": [],
+      "metaSortKey": -90,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_resend_confirmation",
+      "parentId": "grp_auth",
+      "name": "9. Resend Confirmation",
+      "description": "Resends confirmation only for accounts that are still pending.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/resend-confirmation",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"brewer@leffe.com\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "metaSortKey": -80,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_forgot_password",
+      "parentId": "grp_auth",
+      "name": "10. Forgot Password",
+      "description": "Requests a password-reset token; the response does not reveal whether the account exists.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/forgot-password",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"brewer@leffe.com\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "metaSortKey": -70,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_reset_password",
+      "parentId": "grp_auth",
+      "name": "11. Reset Password",
+      "description": "Paste the reset token from Mailpit into reset_token. This revokes active refresh tokens.",
+      "method": "POST",
+      "url": "{{ base_url }}/api/auth/reset-password",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"brewer@leffe.com\",\n  \"token\": \"{{ reset_token }}\",\n  \"newPassword\": \"NewBrewer@123!\"\n}"
+      },
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "metaSortKey": -60,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_me",
+      "parentId": "grp_auth",
+      "name": "12. Current User",
+      "description": "Returns the authenticated user's claims.",
+      "method": "GET",
+      "url": "{{ base_url }}/api/auth/me",
+      "body": {},
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -50,
       "_type": "request"
     },
 

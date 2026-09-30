@@ -22,7 +22,7 @@ public class BreweriesControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task GetAll_Authenticated_ReturnsOk()
     {
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
 
         var response = await _client.GetAsync("/api/breweries");
@@ -34,7 +34,7 @@ public class BreweriesControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task GetById_BreweryDoesNotExist_ReturnsNotFound()
     {
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
 
         var response = await _client.GetAsync("/api/breweries/999999");
@@ -46,7 +46,7 @@ public class BreweriesControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task CreateBeer_AsOwnerBrewer_ReturnsCreated()
     {
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
         var dto = new CreateBeerDto("Duvel", "Belgian golden ale", 8.5m, 5.0m);
 
@@ -57,10 +57,27 @@ public class BreweriesControllerTests(CustomWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task GetBeers_AfterCreatingBeer_InvalidatesCachedList()
+    {
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
+        _client.UseBearerToken(brewer.AccessToken);
+        var path = $"/api/breweries/{brewer.BreweryId}/beers";
+        var initial = await _client.GetFromJsonAsync<List<BeerDto>>(path);
+        var dto = new CreateBeerDto("Duvel", "Belgian golden ale", 8.5m, 5.0m);
+
+        initial.Should().BeEmpty();
+        (await _client.PostAsJsonAsync(path, dto)).EnsureSuccessStatusCode();
+        var beers = await _client.GetFromJsonAsync<List<BeerDto>>(path);
+        _client.ClearAuthorization();
+
+        beers.Should().ContainSingle(beer => beer.Name == "Duvel");
+    }
+
+    [Fact]
     public async Task CreateBeer_AsAnotherBrewersOwner_ReturnsForbidden()
     {
-        var owner = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
-        var intruder = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var owner = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
+        var intruder = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(intruder.AccessToken);
         var dto = new CreateBeerDto("Duvel", "Belgian golden ale", 8.5m, 5.0m);
 
@@ -73,7 +90,7 @@ public class BreweriesControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task CreateBeer_AsAdmin_ReturnsCreated()
     {
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         var adminToken = await AuthHelper.LoginAsAdminAsync(_client);
         _client.UseBearerToken(adminToken);
         var dto = new CreateBeerDto("Westmalle Tripel", "Trappist ale", 9.5m, 6.0m);

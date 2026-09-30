@@ -1,6 +1,7 @@
 using System.Security.Claims;
+using BeerApi.Api.Authorization;
 using BeerApi.Application.DTOs;
-using BeerApi.Application.Services;
+using BeerApi.Application.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,27 +9,22 @@ namespace BeerApi.Api.Controllers;
 
 [ApiController]
 [Route("api/sales")]
-[Authorize(Roles = "Brewer,Admin")]
-public class SalesController(SaleService saleService, BeerService beerService) : ControllerBase
+[Authorize(Policy = AuthorizationPolicies.BrewerOrAdmin)]
+public class SalesController(
+    ISaleService saleService,
+    IBeerService beerService,
+    IAuthorizationService authorizationService) : ControllerBase
 {
-    private readonly SaleService _saleService = saleService;
-    private readonly BeerService _beerService = beerService;
+    private readonly ISaleService _saleService = saleService;
+    private readonly IBeerService _beerService = beerService;
+    private readonly IAuthorizationService _authorizationService = authorizationService;
 
     [HttpPost]
     public async Task<IActionResult> CreateSale([FromBody] CreateSaleDto dto, CancellationToken ct)
     {
-        if (!User.IsInRole("Admin"))
-        {
-            var beer = await _beerService.GetByIdAsync(dto.BeerId, ct);
-            var userBreweryIdClaim = User.FindFirstValue("BreweryId");
-
-            if (userBreweryIdClaim is null ||
-                !int.TryParse(userBreweryIdClaim, out var userBreweryId) ||
-                beer.BreweryId != userBreweryId)
-            {
-                return Forbid();
-            }
-        }
+        var beer = await _beerService.GetByIdAsync(dto.BeerId, ct);
+        if (!(await _authorizationService.AuthorizeAsync(User, beer.BreweryId, AuthorizationPolicies.ManageBrewery)).Succeeded)
+            return Forbid();
 
         var sale = await _saleService.CreateSaleAsync(dto, ct);
         return Created($"/api/sales/{sale.Id}", sale);

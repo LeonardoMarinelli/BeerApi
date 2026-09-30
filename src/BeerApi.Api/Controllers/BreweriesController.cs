@@ -1,6 +1,6 @@
-using System.Security.Claims;
 using BeerApi.Application.DTOs;
-using BeerApi.Application.Services;
+using BeerApi.Application.Services.Interfaces;
+using BeerApi.Api.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,10 +9,14 @@ namespace BeerApi.Api.Controllers;
 [ApiController]
 [Route("api/breweries")]
 [Authorize]
-public class BreweriesController(BreweryService breweryService, BeerService beerService) : ControllerBase
+public class BreweriesController(
+    IBreweryService breweryService,
+    IBeerService beerService,
+    IAuthorizationService authorizationService) : ControllerBase
 {
-    private readonly BreweryService _breweryService = breweryService;
-    private readonly BeerService _beerService = beerService;
+    private readonly IBreweryService _breweryService = breweryService;
+    private readonly IBeerService _beerService = beerService;
+    private readonly IAuthorizationService _authorizationService = authorizationService;
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] PaginationQueryDto query, CancellationToken ct) =>
@@ -27,10 +31,10 @@ public class BreweriesController(BreweryService breweryService, BeerService beer
         Ok(await _beerService.GetByBreweryIdAsync(breweryId, ct));
 
     [HttpPost("{breweryId:int}/beers")]
-    [Authorize(Roles = "Brewer,Admin")]
+    [Authorize(Policy = AuthorizationPolicies.BrewerOrAdmin)]
     public async Task<IActionResult> CreateBeer(int breweryId, [FromBody] CreateBeerDto dto, CancellationToken ct)
     {
-        if (!IsBreweryOwnerOrAdmin(breweryId))
+        if (!(await _authorizationService.AuthorizeAsync(User, breweryId, AuthorizationPolicies.ManageBrewery)).Succeeded)
             return Forbid();
 
         var beer = await _beerService.CreateAsync(breweryId, dto, ct);
@@ -38,10 +42,10 @@ public class BreweriesController(BreweryService breweryService, BeerService beer
     }
 
     [HttpPut("{breweryId:int}/beers/{beerId:int}")]
-    [Authorize(Roles = "Brewer,Admin")]
+    [Authorize(Policy = AuthorizationPolicies.BrewerOrAdmin)]
     public async Task<IActionResult> UpdateBeer(int breweryId, int beerId, [FromBody] UpdateBeerDto dto, CancellationToken ct)
     {
-        if (!IsBreweryOwnerOrAdmin(breweryId))
+        if (!(await _authorizationService.AuthorizeAsync(User, breweryId, AuthorizationPolicies.ManageBrewery)).Succeeded)
             return Forbid();
 
         var beer = await _beerService.UpdateAsync(breweryId, beerId, dto, ct);
@@ -49,21 +53,14 @@ public class BreweriesController(BreweryService breweryService, BeerService beer
     }
 
     [HttpDelete("{breweryId:int}/beers/{beerId:int}")]
-    [Authorize(Roles = "Brewer,Admin")]
+    [Authorize(Policy = AuthorizationPolicies.BrewerOrAdmin)]
     public async Task<IActionResult> DeleteBeer(int breweryId, int beerId, CancellationToken ct)
     {
-        if (!IsBreweryOwnerOrAdmin(breweryId))
+        if (!(await _authorizationService.AuthorizeAsync(User, breweryId, AuthorizationPolicies.ManageBrewery)).Succeeded)
             return Forbid();
 
         await _beerService.DeleteAsync(breweryId, beerId, ct);
         return NoContent();
     }
 
-    private bool IsBreweryOwnerOrAdmin(int breweryId)
-    {
-        if (User.IsInRole("Admin")) return true;
-
-        var claim = User.FindFirstValue("BreweryId");
-        return claim is not null && int.TryParse(claim, out var userBreweryId) && userBreweryId == breweryId;
-    }
 }

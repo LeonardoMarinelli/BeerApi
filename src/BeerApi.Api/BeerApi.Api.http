@@ -1,6 +1,60 @@
 @BeerApi.Api_HostAddress = http://localhost:5157
+@accessToken = PASTE_ACCESS_TOKEN_HERE
+@refreshToken = PASTE_REFRESH_TOKEN_HERE
 
-GET {{BeerApi.Api_HostAddress}}/weatherforecast/
+GET {{BeerApi.Api_HostAddress}}/health
 Accept: application/json
 
 ###
+
+POST {{BeerApi.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+	"email": "admin@beerapi.com",
+	"password": "Admin@123!"
+}
+
+###
+
+GET {{BeerApi.Api_HostAddress}}/api/auth/me
+Authorization: Bearer {{accessToken}}
+
+###
+
+POST {{BeerApi.Api_HostAddress}}/api/auth/refresh
+Content-Type: application/json
+
+{
+	"refreshToken": "{{refreshToken}}"
+}
+
+###
+
+POST {{BeerApi.Api_HostAddress}}/api/auth/logout
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+	"refreshToken": "{{refreshToken}}"
+}
+
+###
+
+POST {{BeerApi.Api_HostAddress}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+	"email": "brewer@leffe.com"
+}
+
+###
+
+POST {{BeerApi.Api_HostAddress}}/api/auth/reset-password
+Content-Type: application/json
+
+{
+	"email": "brewer@leffe.com",
+	"token": "PASTE_PASSWORD_RESET_TOKEN_HERE",
+	"newPassword": "NewBrewer@123!"
+}

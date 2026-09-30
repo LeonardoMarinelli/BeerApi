@@ -1,501 +1,218 @@
-# 🍺 BeerApi
+# BeerApi
 
-API REST para gestão de cervejarias e atacadistas belgas, desenvolvida em C# como projeto de portfólio.
+API REST para gestão de cervejarias, cervejas, vendas e estoque de atacadistas. Projeto de portfólio em .NET 10 com MySQL, Redis, autenticação por bearer token e testes contra containers reais.
 
----
+## Visão Geral
 
-## 📋 Proposta
+- Cervejeiros gerenciam as cervejas da própria cervejaria e registram vendas para atacadistas.
+- Vendas atualizam o estoque e ficam disponíveis em histórico paginado.
+- Usuários autenticados podem solicitar orçamentos com desconto por volume.
+- Administradores consultam o log de auditoria.
+- O seed inclui 7 cervejarias belgas, 16 cervejas e 3 atacadistas.
 
-Bem-vindo à Bélgica! Este sistema foi construído para gerenciar o relacionamento entre **cervejeiros**, **atacadistas** e o **estoque e venda de cervejas belgas**.
+## Demonstração
 
-As principais funcionalidades são:
+![Demonstração da interface atual da API](docs/images/swagger-demo.gif)
 
-- Cervejeiros podem **cadastrar, editar e excluir** as cervejas que produzem
-- Cervejeiros podem **vender** cervejas aos atacadistas (incrementando o estoque automaticamente)
-- Qualquer usuário autenticado pode **solicitar um orçamento** a um atacadista, com descontos automáticos por volume
-- Toda alteração no banco de dados é **registrada em um log de auditoria** (quem, quando e o quê)
-- Banco de dados **pré-populado** com 7 cervejarias belgas famosas, 16 cervejas e 3 atacadistas
+A captura mostra a interface Swagger usada atualmente em `Development`. Ela será substituída por Scalar com `Microsoft.AspNetCore.OpenApi`; a imagem é apenas uma referência visual temporária.
 
----
+## Arquitetura
 
-## 🛠️ Tecnologias e Boas Práticas
+```mermaid
+flowchart LR
+    Client[Cliente HTTP] --> API[BeerApi.Api]
+    API -. referencia .-> Application[BeerApi.Application]
+    API -. composição e DI .-> Infrastructure[BeerApi.Infrastructure]
+    Application -. referencia .-> Domain[BeerApi.Domain]
+    Infrastructure -. implementa serviços .-> Application
+    Infrastructure -. implementa repositórios .-> Domain
+    Infrastructure --> MySQL[(MySQL)]
+    Infrastructure --> Redis[(Redis)]
+    Infrastructure --> SMTP[Mailpit em desenvolvimento / SMTP]
+```
+
+```mermaid
+erDiagram
+    BREWERY ||--o{ BEER : produz
+    BREWERY ||--o{ SALE : origina
+    BEER ||--o{ SALE : vendida
+    WHOLESALER ||--o{ SALE : compra
+    BEER ||--o{ WHOLESALER_BEER : estocada
+    WHOLESALER ||--o{ WHOLESALER_BEER : mantém
+    BREWERY o|--o{ APPLICATION_USER : usuários
+    WHOLESALER o|--o{ APPLICATION_USER : usuários
+    APPLICATION_USER ||--o{ REFRESH_TOKEN : possui
+```
+
+### Decisões de Arquitetura
+
+| ADR | Decisão | Motivo e consequência |
+|---|---|---|
+| 001 | Separar Domain, Application, Infrastructure e API | Regras e contratos ficam independentes de EF Core e HTTP; o custo é manter interfaces nos limites entre camadas. |
+| 002 | Usar access tokens opacos do ASP.NET Core Identity e refresh tokens próprios | O access token aproveita o bearer handler do framework; refresh tokens armazenam somente SHA-256, rotacionam a cada uso e a reutilização revoga a família. |
+| 003 | Manter MySQL como fonte de verdade e usar HybridCache com Redis | Redis compartilha o cache entre processos e memória local reduz leituras repetidas. Tags invalidam dados após escritas; o L1 de outras instâncias pode permanecer até o TTL local de 30 segundos. |
+| 004 | Executar escritas transacionais através da execution strategy do EF Core | MySQL usa retry automático; a operação inteira precisa estar dentro da estratégia para preservar consistência em retries. |
+| 005 | Testar a integração com MySQL e Redis descartáveis via Testcontainers | Exercita persistência e cache reais sem depender de serviços compartilhados; requer Docker durante os testes locais. |
 
 ### Stack
 
-| Tecnologia | Versão | Uso |
-|---|---|---|
-| **.NET** | 10 (LTS) | Runtime e SDK |
-| **ASP.NET Core** | 10 | Framework Web / REST API |
-| **Entity Framework Core** | 9.x | ORM |
-| **Pomelo.EntityFrameworkCore.MySql** | 9.0.0 | Provider MySQL para EF Core |
-| **MySQL** | 8.0 | Banco de dados relacional |
-| **Docker / Docker Compose** | — | Container do banco de dados (e, opcionalmente, da própria API) |
-| **ASP.NET Core Identity** | 9.x | Autenticação e gerenciamento de usuários |
-| **Serilog** | 8.0 | Structured logging para console e arquivo rolling |
-| **DotNetEnv** | 3.x | Carrega o arquivo `.env` como variáveis de ambiente no startup |
-| **Swashbuckle (Swagger UI)** | 6.9 | Documentação interativa da API |
-| **xUnit** | 2.9 | Framework de testes unitários e de integração |
-| **NSubstitute** | 6.x | Mocking de dependências nos testes unitários |
-| **AwesomeAssertions** | 9.x | Assertions fluentes e legíveis nos testes |
-| **Microsoft.AspNetCore.Mvc.Testing** | 10.x | `WebApplicationFactory` para testes de integração in-memory |
-| **Testcontainers.MySql** | 4.x | Container MySQL real e descartável para os testes de integração |
+| Componente | Versão | Uso |
+|---|---:|---|
+| .NET / ASP.NET Core | 10 | Runtime e API REST |
+| Entity Framework Core | 9.0.8 | ORM e migrations |
+| Pomelo MySQL | 9.0.0 | Provider MySQL |
+| MySQL | 8.0 | Persistência relacional |
+| `Microsoft.Extensions.Caching.Hybrid` | 10.10.0 | Cache L1/L2, coalescência de chamadas e tags |
+| `Microsoft.Extensions.Caching.StackExchangeRedis` / Redis | 10.0.11 / 7 | Cache distribuído |
+| ASP.NET Core Identity | — | Usuários, roles e bearer authentication |
+| MailKit / Mailpit | 4.18.1 / — | SMTP e caixa de e-mail local |
+| Serilog | 8.0 | Logs estruturados |
+| xUnit / Testcontainers | 2.9 / 4.14 | Testes unitários e de integração |
+| k6 | 0.55.0 | Benchmark local de carga |
 
-### Arquitetura
-
-O projeto segue **Clean Architecture** dividida em 4 camadas com dependências em uma única direção:
-
-```
-BeerApi.Domain          ← Entidades, Interfaces, Exceções de domínio
-      ↑
-BeerApi.Application     ← DTOs, Interfaces de serviço, Implementação da lógica de negócio
-      ↑
-BeerApi.Infrastructure  ← EF Core, Repositórios, Identity, Seed, Auditoria
-      ↑
-BeerApi.Api             ← Controllers, Middleware, Program.cs
-```
-
-### Boas Práticas Aplicadas
-
-- **Clean Architecture**: separação clara de responsabilidades entre as camadas
-- **Repository Pattern**: isolamento do acesso a dados por meio de interfaces
-- **Dependency Injection**: todas as dependências resolvidas via DI do ASP.NET Core
-- **Bearer Token Authentication**: via `AddIdentityApiEndpoints` (abordagem oficial do .NET 9/10) — sem JWT customizado
-- **Role-based Authorization**: roles `Admin`, `Brewer` e `Wholesaler` com validação de posse (brewer só edita suas próprias cervejas)
-- **Custom Claims**: `BreweryId` e `WholesalerId` injetados no token via `IUserClaimsPrincipalFactory`
-- **Audit Log automático**: override de `SaveChangesAsync` no `DbContext` captura todas as operações de escrita (Create/Update/Delete) com o usuário responsável
-- **Global Exception Middleware**: respostas de erro padronizadas com HTTP status correto (400, 404, 500), no formato **ProblemDetails** (RFC 9457)
-- **EF Core Migrations**: schema versionado, aplicado automaticamente no startup
-- **Seed via `HasData`**: dados das cervejarias, cervejas e atacadistas são parte da migration (reproduzível)
-- **Transações explícitas**: registro de novo usuário (brewer/wholesaler) e registro de venda (`POST /api/sales`) usam `IUnitOfWork.ExecuteInTransactionAsync` (execution strategy do EF Core) para garantir consistência entre estoque e histórico de vendas, mesmo com retry automático habilitado
-- **Records para DTOs**: imutabilidade e igualdade estrutural por padrão
-- **Credenciais externalizadas**: banco e admin via `.env` + variáveis de ambiente (nada sensível em arquivos versionados)
-- **Validação de entrada**: `DataAnnotations` em todos os DTOs de entrada — `[ApiController]` rejeita automaticamente com `400` antes de chegar aos serviços
-- **Rate Limiting nativo**: política por IP com janela fixa (10 req/min) aplicada a todos os endpoints de autenticação via `AddRateLimiter` do ASP.NET Core
-- **Limite de body**: Kestrel configurado para rejeitar bodies acima de 1 MB
-- **Structured Logging com Serilog**: request logging automático por request (método, path, status, tempo), rolling file diário e níveis de log configuráveis por namespace via `appsettings.json`
-- **Configuração via `.env`**: `DotNetEnv` carrega o arquivo `.env` no startup, tornando todas as variáveis disponíveis para o `IConfiguration` do ASP.NET Core
-- **Paginação**: listagens (`GET /api/breweries`, `/api/wholesalers`, `/api/sales`, `/api/audit-logs`) retornam um envelope `{ items, page, pageSize, totalCount, totalPages }` via `?page=&pageSize=`
-- **Health check**: endpoint público `GET /health` verifica a conectividade com o banco de dados
-- **CI**: workflow do GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) roda build + testes unitários em cada pull request para `main`
-
----
-
-## 🗂️ Estrutura do Projeto
-
-```
-BeerApi/
-├── docker-compose.yml              # Container MySQL 8.0 (+ serviço opcional da API)
-├── .env.example                    # Template de credenciais (copie para .env)
-├── BeerApi_Insomnia.json           # Collection de testes para o Insomnia
-├── BeerApi.slnx
-├── .github/workflows/ci.yml         # CI: build + testes unitários
-├── src/
-│   ├── BeerApi.Domain/
-│   │   ├── Entities/               # Brewery, Beer, Wholesaler, WholesalerBeer, Sale, AuditLog
-│   │   ├── Interfaces/             # IBreweryRepository, IBeerRepository, ...
-│   │   └── Exceptions/             # BusinessException, NotFoundException
-│   │
-│   ├── BeerApi.Application/
-│   │   ├── DTOs/                   # BeerDto, QuoteRequestDto, RegisterBrewerDto, ...
-│   │   └── Services/
-│   │       ├── Interfaces/         # IBeerService, IWholesalerService, ...
-│   │       └── (implementações)    # BeerService, WholesalerService, SaleService, ...
-│   │
-│   ├── BeerApi.Infrastructure/
-│   │   ├── Data/
-│   │   │   ├── AppDbContext.cs     # DbContext com audit log automático
-│   │   │   ├── Configurations/     # Fluent API + HasData (seed)
-│   │   │   ├── Migrations/         # Migrations geradas pelo EF Core
-│   │   │   └── Seed/               # DataSeeder (roles + admin)
-│   │   ├── Identity/               # ApplicationUser, ClaimsPrincipalFactory
-│   │   ├── Repositories/           # Implementações dos repositórios
-│   │   └── Services/               # AuthService
-│   │
-│   └── BeerApi.Api/
-│       ├── Controllers/            # BreweriesController, SalesController, AuditLogsController, ...
-│       ├── Middleware/             # ExceptionMiddleware
-│       ├── Dockerfile
-│       ├── Program.cs
-│       └── appsettings.json
-│
-└── tests/
-    ├── BeerApi.UnitTests/
-    │   └── Services/                # Testes unitários dos serviços de Application (mocks via NSubstitute)
-    │
-    └── BeerApi.IntegrationTests/
-        ├── Controllers/             # Testes end-to-end via WebApplicationFactory
-        ├── Helpers/                 # AuthHelper (registro/login de usuários de teste)
-        └── CustomWebApplicationFactory.cs  # Sobe um container MySQL real via Testcontainers
-```
-
----
-
-## 🗄️ Modelo de Dados
-
-```
-Brewery  1──*  Beer  *──*  Wholesaler   (via WholesalerBeer com campo Quantity)
-                Beer  1──*  Sale
-           Brewery  1──*  Sale
-                    Wholesaler  1──*  Sale
-ApplicationUser  *──1  Brewery    (brewer)
-ApplicationUser  *──1  Wholesaler (wholesaler)
-AuditLog  (log de todas as operações de escrita)
-```
-
----
-
-## ▶️ Como Rodar
+## Executar Localmente
 
 ### Pré-requisitos
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop)
+- .NET 10 SDK
+- Docker Desktop com Docker Compose
 
-### 1. Clonar e configurar credenciais
+### Subir a aplicação em containers
 
-```bash
-git clone <url-do-repositório>
-cd BeerApi
-
-# Copie o template de credenciais e edite conforme necessário
-cp .env.example .env
+```powershell
+Copy-Item .env.example .env
+docker compose up -d --build
+docker compose ps
 ```
 
-O arquivo `.env` controla as credenciais do MySQL. Os valores padrão funcionam sem alterações para desenvolvimento local.
+O Compose inicia MySQL, Redis, Mailpit e API. Endereços locais:
 
-### 2. Subir o banco de dados (e, opcionalmente, a API)
-
-**Opção A — só o banco (rodar a API localmente com `dotnet run`, útil para debugar/editar código):**
-
-```bash
-docker-compose up -d db
-```
-
-**Opção B — tudo em containers (banco + API), sem precisar do .NET SDK instalado:**
-
-```bash
-docker-compose up -d --build
-```
-
-Aguarde o container do banco ficar saudável (cerca de 30 segundos na primeira vez):
-
-```bash
-docker-compose ps
-```
-
-Se você usou a Opção B, a API já estará disponível em `http://localhost:5157` — pule para a seção "URLs" abaixo (não é necessário rodar `dotnet run`).
-
-### 3. Rodar a API (Opção A — fora do Docker)
-
-```bash
-cd src/BeerApi.Api
-dotnet run
-```
-
-Na inicialização, a API:
-1. Executa todas as migrations pendentes automaticamente
-2. Cria as roles (`Admin`, `Brewer`, `Wholesaler`)
-3. Cria o usuário admin padrão
-
-**URLs:**
-- HTTP: `http://localhost:5157`
-- HTTPS: `https://localhost:7182` (somente fora do Docker)
-- Swagger UI: `http://localhost:5157/swagger`
-- Health check: `http://localhost:5157/health`
-
-### 4. Credenciais do Admin
-
-| Campo | Valor padrão |
+| Serviço | Endereço |
 |---|---|
-| E-mail | `admin@beerapi.com` |
-| Senha | `Admin@123!` |
+| API | `http://localhost:5157` |
+| Health check | `http://localhost:5157/health` |
+| Mailpit | `http://localhost:8025` |
+| Swagger atual | `http://localhost:5157/swagger` somente em `Development` |
 
-Para alterar, defina as variáveis de ambiente no arquivo `.env` (recomendado) ou via `appsettings.json`:
+O container da API usa `Production`, portanto a interface Swagger não é exposta por esse perfil. Para executá-la localmente em `Development`, suba apenas as dependências e rode a API com o perfil padrão do projeto:
 
-```env
-AdminUser__Email=seu@email.com
-AdminUser__Password=SuaSenhaSegura!
+```powershell
+docker compose up -d db redis mailpit
+dotnet run --project src/BeerApi.Api
 ```
 
-> **Produção:** nunca suba credenciais reais em arquivos versionados. Use variáveis de ambiente ou um secrets manager.
+As migrations e o seed de roles/admin são aplicados no startup. O Mailpit captura as mensagens de confirmação e recuperação de senha em `http://localhost:8025`.
 
----
+### Credenciais
 
-## 🔐 Autenticação
+O admin local usa `admin@beerapi.com` / `Admin@123!` quando não há valores configurados. Altere `AdminUser__Password` antes de expor a aplicação fora da máquina local; não versione credenciais reais.
 
-A API usa **ASP.NET Core Identity com Bearer Tokens** (abordagem nativa do .NET 9/10 via `AddIdentityApiEndpoints`).
+## Autenticação e Autorização
 
-### Fluxo
+- Cadastro de cervejeiro ou atacadista cria a conta pendente e envia confirmação de e-mail.
+- Login exige e-mail confirmado; access token opaco expira em 15 minutos.
+- Refresh token aleatório é persistido somente como hash, expira em 14 dias e é rotacionado ao ser usado.
+- Reutilizar um refresh token consumido revoga a família. Logout revoga a família atual; reset de senha revoga os refresh tokens ativos do usuário.
+- Endpoints de autenticação limitam solicitações a 10 por minuto por IP; após cinco tentativas inválidas, o Identity bloqueia temporariamente o login.
+- As policies separam acesso administrativo, papel Brewer e propriedade da cervejaria; um Brewer só altera cervejas e registra vendas da própria cervejaria.
 
-```
-POST /api/auth/register/brewer      → cria conta + cervejaria vinculada
-POST /api/auth/register/wholesaler  → cria conta + atacadista vinculado
-POST /api/auth/login                → retorna accessToken + refreshToken
-POST /api/auth/refresh              → renova o accessToken
-```
+## API
 
-### Usar o token
+As listagens paginadas recebem `page` (padrão 1) e `pageSize` (padrão 20, máximo 100) e retornam `{ items, page, pageSize, totalCount, totalPages }`.
 
-Passe o token no header de todas as requisições protegidas:
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| `POST` | `/api/auth/register/brewer` | Público | Registrar cervejeiro e cervejaria |
+| `POST` | `/api/auth/register/wholesaler` | Público | Registrar atacadista |
+| `GET` | `/api/auth/confirm-email?userId=&code=` | Público | Confirmar e-mail |
+| `POST` | `/api/auth/resend-confirmation` | Público | Reenviar confirmação |
+| `POST` | `/api/auth/login` | Público | Obter access e refresh tokens |
+| `POST` | `/api/auth/refresh` | Público | Rotacionar refresh token |
+| `POST` | `/api/auth/logout` | Autenticado | Revogar a família de refresh tokens |
+| `POST` | `/api/auth/forgot-password` | Público | Solicitar reset; resposta não revela se a conta existe |
+| `POST` | `/api/auth/reset-password` | Público | Redefinir senha |
+| `GET` | `/api/auth/me` | Autenticado | Consultar usuário e claims |
+| `GET` | `/api/breweries` | Autenticado | Listar cervejarias |
+| `GET` | `/api/breweries/{id}` | Autenticado | Consultar cervejaria |
+| `GET` | `/api/breweries/{breweryId}/beers` | Autenticado | Listar cervejas da cervejaria |
+| `POST` | `/api/breweries/{breweryId}/beers` | Brewer proprietário / Admin | Criar cerveja |
+| `PUT` | `/api/breweries/{breweryId}/beers/{beerId}` | Brewer proprietário / Admin | Atualizar cerveja |
+| `DELETE` | `/api/breweries/{breweryId}/beers/{beerId}` | Brewer proprietário / Admin | Excluir cerveja |
+| `GET` | `/api/wholesalers` | Autenticado | Listar atacadistas |
+| `GET` | `/api/wholesalers/{id}/beers` | Autenticado | Consultar estoque |
+| `POST` | `/api/wholesalers/{id}/quote` | Autenticado | Calcular orçamento |
+| `POST` | `/api/sales` | Brewer proprietário / Admin | Registrar venda |
+| `GET` | `/api/sales` | Brewer / Admin | Listar vendas; Brewer vê apenas as próprias |
+| `GET` | `/api/audit-logs` | Admin | Consultar auditoria com filtro opcional `entityName` |
+| `GET` | `/health` | Público | Verificar MySQL e Redis |
 
-```
-Authorization: Bearer <accessToken>
-```
+## Regras de Negócio e Auditoria
 
-### Roles e permissões
+- Registrar uma venda incrementa o estoque do atacadista; se não houver entrada de estoque, ela é criada.
+- Orçamentos aplicam 0% até 10 unidades, 10% acima de 10 e 20% acima de 20.
+- O imposto atual é 0% (`TaxRate` fica registrado na venda).
+- Alterações de domínio são gravadas em `AuditLogs` com entidade, ação, valores anteriores/novos, instante UTC e usuário quando disponível. Refresh tokens são excluídos da auditoria.
 
-| Role | Permissões |
-|---|---|
-| **Admin** | Acesso total a todos os endpoints e todas as cervejarias |
-| **Brewer** | Gerencia cervejas da **própria** cervejaria; registra vendas das **próprias** cervejas |
-| **Wholesaler** | Leitura geral; solicita orçamentos |
-| *(qualquer autenticado)* | Leitura de cervejarias, cervejas, atacadistas e estoque |
+## Cache e Benchmark
 
----
+O cache está aplicado aos DTOs de cervejarias, cervejas e atacadistas/estoque. Escritas invalidam as tags afetadas; cotações, vendas paginadas e auditoria não são cacheadas. No padrão atual, a expiração L2 é 300 segundos e a L1 local é 30 segundos. `CACHE_ENABLED=false` desliga os decorators para comparação; em múltiplas instâncias, os L1s remotos podem permanecer até expirar.
 
-## 📡 Endpoints
+O cenário k6 executa 20 VUs por 60 segundos. Uma comparação local produziu:
 
-> Endpoints de listagem (`GET /api/breweries`, `/api/wholesalers`, `/api/sales`, `/api/audit-logs`) aceitam os query params `?page=` (padrão 1) e `?pageSize=` (padrão 20, máximo 100) e retornam o envelope `{ items, page, pageSize, totalCount, totalPages }`.
+| Cache | Requisições/s | Mediana | p95 | Falhas HTTP |
+|---|---:|---:|---:|---:|
+| Desligado | 98,34 | 4,00 ms | 20,92 ms | 0% |
+| Ligado | 97,12 | 2,25 ms | 32,76 ms | 0% |
 
-### Autenticação
+Nesta amostra, a mediana caiu com cache, mas o p95 não melhorou e a vazão ficou praticamente igual. É uma medição local, não uma garantia de performance em produção.
 
-| Método | Rota | Auth | Descrição |
-|--------|------|------|-----------|
-| `POST` | `/api/auth/register/brewer` | Público | Registrar novo cervejeiro + cervejaria |
-| `POST` | `/api/auth/register/wholesaler` | Público | Registrar novo atacadista |
-| `POST` | `/api/auth/login` | Público | Login → retorna `accessToken` e `refreshToken` |
-| `POST` | `/api/auth/refresh` | Público | Renovar token com `refreshToken` |
-| `GET`  | `/api/auth/manage/info` | Auth | Ver e-mail do usuário logado |
+Para repetir no PowerShell com a API e os serviços do Compose em execução:
 
-### Cervejarias e Cervejas
+```powershell
+$env:CACHE_ENABLED = "false"
+docker compose up -d --force-recreate api
+docker compose --profile loadtest run --rm --no-deps k6
 
-| Método | Rota | Auth | Descrição |
-|--------|------|------|-----------|
-| `GET` | `/api/breweries` | Auth | Listar todas as cervejarias |
-| `GET` | `/api/breweries/{id}` | Auth | Detalhes de uma cervejaria |
-| `GET` | `/api/breweries/{breweryId}/beers` | Auth | Listar cervejas de uma cervejaria |
-| `POST` | `/api/breweries/{breweryId}/beers` | Brewer/Admin | Criar nova cerveja |
-| `PUT` | `/api/breweries/{breweryId}/beers/{beerId}` | Brewer/Admin | Atualizar cerveja |
-| `DELETE` | `/api/breweries/{breweryId}/beers/{beerId}` | Brewer/Admin | Excluir cerveja |
-
-### Vendas
-
-| Método | Rota | Auth | Descrição |
-|--------|------|------|-----------|
-| `POST` | `/api/sales` | Brewer/Admin | Registrar venda de cerveja para um atacadista (incrementa estoque) |
-| `GET` | `/api/sales` | Brewer/Admin | Listar vendas (paginado). Admin vê todas; Brewer só vê vendas da própria cervejaria |
-
-### Atacadistas e Orçamentos
-
-| Método | Rota | Auth | Descrição |
-|--------|------|------|-----------|
-| `GET` | `/api/wholesalers` | Auth | Listar todos os atacadistas |
-| `GET` | `/api/wholesalers/{id}/beers` | Auth | Ver estoque de cervejas do atacadista |
-| `POST` | `/api/wholesalers/{id}/quote` | Auth | Solicitar orçamento |
-
-### Auditoria
-
-| Método | Rota | Auth | Descrição |
-|--------|------|------|-----------|
-| `GET` | `/api/audit-logs` | Admin | Listar log de auditoria (paginado), com filtro opcional `?entityName=` (ex: `Beer`, `Sale`) |
-
-### Infraestrutura
-
-| Método | Rota | Auth | Descrição |
-|--------|------|------|-----------|
-| `GET` | `/health` | Público | Health check da API e da conectividade com o banco de dados |
-
----
-
-## 🧾 Regras de Negócio
-
-### Venda (brewery → wholesaler)
-- Um cervejeiro só pode vender cervejas da **própria** cervejaria
-- A venda incrementa automaticamente o estoque do atacadista
-- Se o atacadista ainda não vendia aquela cerveja, uma nova entrada de estoque é criada
-
-### Orçamento
-
-**Corpo da requisição:**
-```json
-POST /api/wholesalers/1/quote
-{
-  "items": [
-    { "beerId": 1, "quantity": 5 },
-    { "beerId": 4, "quantity": 8 }
-  ]
-}
+$env:CACHE_ENABLED = "true"
+docker compose up -d --force-recreate api
+docker compose --profile loadtest run --rm --no-deps k6
+Remove-Item Env:CACHE_ENABLED
 ```
 
-**Regras de desconto:**
-| Quantidade total | Desconto |
-|---|---|
-| ≤ 10 unidades | 0% |
-| > 10 unidades | 10% |
-| > 20 unidades | 20% |
+## Testes e CI
 
-**Validações (retornam HTTP 400):**
-1. O pedido não pode estar vazio
-2. O atacadista deve existir
-3. Não pode haver cervejas duplicadas no pedido
-4. A quantidade pedida não pode exceder o estoque do atacadista
-5. A cerveja deve ser vendida por este atacadista
-
-**Impostos:** atualmente 0% — o campo `TaxRate` existe na estrutura e está pronto para uso futuro.
-
----
-
-## 📊 Auditoria
-
-Toda operação que altera o banco de dados (Create, Update, Delete) é registrada automaticamente na tabela `AuditLogs` com:
-
-| Campo | Descrição |
-|---|---|
-| `EntityName` | Nome da entidade afetada (ex: `Beer`, `Sale`) |
-| `EntityId` | Chave primária do registro afetado |
-| `Action` | `Create`, `Update` ou `Delete` |
-| `OldValues` | JSON com os valores anteriores (null em criações) |
-| `NewValues` | JSON com os novos valores (null em deleções) |
-| `Timestamp` | Data e hora UTC da operação |
-| `UserId` | ID do usuário responsável (null para operações de sistema) |
-| `UserEmail` | E-mail do usuário responsável |
-
-Consulte via `GET /api/audit-logs` (somente Admin, paginado, com filtro opcional `?entityName=`).
-
----
-
-## 📋 Logs
-
-A aplicação usa **Serilog** para logging estruturado em dois destinos simultâneos.
-
-### Console
-
-Uma linha por request, nível e mensagem:
-
-```
-[10:32:01 INF] HTTP POST /api/auth/login → 200 em 142.3ms
-[10:32:05 INF] HTTP GET /api/breweries → 200 em 18.1ms
-[10:32:07 WRN] Não foi possível encontrar Cerveja com id '99'.
-[10:32:10 ERR] Ocorreu um erro inesperado.
-```
-
-### Arquivo
-
-- **Localização:** `src/BeerApi.Api/logs/beerapi-YYYYMMDD.log`
-- **Rolling diário** — um novo arquivo por dia
-- **Retenção:** últimos 7 arquivos
-- Formato mais detalhado com `SourceContext` e timestamp completo
-- A pasta `logs/` está no `.gitignore` e não é versionada
-
----
-
-## 🧪 Testes Automatizados
-
-O projeto conta com duas suítes de testes automatizados, em `tests/`:
-
-| Suíte | Tecnologias | O que cobre |
-|---|---|---|
-| **BeerApi.UnitTests** | xUnit, NSubstitute, AwesomeAssertions | Regras de negócio dos serviços de `Application` (`BeerService`, `BreweryService`, `SaleService`, `WholesalerService`, `AuditLogService`), com repositórios mockados |
-| **BeerApi.IntegrationTests** | xUnit, Microsoft.AspNetCore.Mvc.Testing, Testcontainers.MySql | Fluxo HTTP completo (autenticação, cervejarias, vendas, atacadistas, audit logs) contra uma API real em memória e um banco MySQL real e descartável |
-
-### Pré-requisitos para os testes de integração
-
-Os testes de integração sobem um container MySQL real via [Testcontainers](https://testcontainers.com/), portanto o **Docker Desktop precisa estar em execução**. Os testes unitários não precisam de Docker.
-
-### Rodando os testes
-
-```bash
-# Todos os testes (unitários + integração)
-dotnet test
-
-# Somente testes unitários (rápidos, sem Docker)
+```powershell
+dotnet test BeerApi.slnx
 dotnet test tests/BeerApi.UnitTests
-
-# Somente testes de integração (requer Docker em execução)
 dotnet test tests/BeerApi.IntegrationTests
 ```
 
----
+Os testes de integração usam `WebApplicationFactory` e containers descartáveis de MySQL e Redis via Testcontainers; Docker precisa estar ativo. O GitHub Actions restaura e compila a solução, depois executa as duas suítes em cada pull request para `main`, conforme [ci.yml](.github/workflows/ci.yml).
 
-## 🧪 Testando com o Insomnia
+## Configuração
 
-O arquivo `BeerApi_Insomnia.json` na raiz do projeto contém uma collection completa para importar no [Insomnia](https://insomnia.rest):
+Copie `.env.example` para `.env`. Compose fornece valores locais padrão; configure segredos próprios antes de publicar a API.
 
-1. **Insomnia → File → Import** → selecione `BeerApi_Insomnia.json`
-2. Faça login com o admin em **🔐 Auth → Login — Admin**
-3. Copie o `accessToken` e cole na variável de ambiente `admin_token`
-4. Todos os demais requests já estão configurados com `{{ admin_token }}`
+| Variável/configuração | Uso |
+|---|---|
+| `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, `DB_PORT` | Inicialização e porta publicada do MySQL |
+| `REDIS_PORT`, `REDIS_CONNECTION` | Redis local; dentro do Compose a API usa `redis:6379` |
+| `CACHE_ENABLED` | Ativar/desativar decorators de cache no Compose |
+| `AdminUser__Email`, `AdminUser__Password` | Conta admin inicial |
+| `APP_PUBLIC_BASE_URL` | Base dos links de confirmação/reset enviados por e-mail |
+| `Auth__AccessTokenMinutes`, `Auth__RefreshTokenDays` | Prazos dos tokens; padrões 15 min / 14 dias |
+| `Cache__ExpirationSeconds`, `Cache__LocalExpirationSeconds` | TTL L2/L1; padrões 300 s / 30 s |
+| `AllowedOrigins` | Origens CORS; em desenvolvimento, localhost:3000 e localhost:5173 |
 
-A collection inclui casos de teste para todos os erros de orçamento (pedido vazio, duplicatas, estoque insuficiente, etc.), além de requests para listar vendas paginadas (**💰 Sales → List Sales**) e consultar o log de auditoria (**🧾 Audit Logs**).
+O Compose direciona SMTP ao Mailpit. Para usar outro provedor no Compose, altere o mapeamento SMTP do serviço `api`; fora do Compose, configure `Smtp__Host`, `Smtp__Port`, `Smtp__Username`, `Smtp__Password` e `Smtp__UseStartTls` no ambiente de execução.
 
----
+## Insomnia e Migrations
 
-## ⚙️ Variáveis de Configuração
+Importe [BeerApi_Insomnia.json](BeerApi_Insomnia.json) no Insomnia para testar os endpoints. Para adicionar uma migration:
 
-### `.env` (credenciais do banco e do admin)
-
-Copie `.env.example` para `.env` e ajuste os valores:
-
-```env
-MYSQL_ROOT_PASSWORD=root_secret
-MYSQL_DATABASE=beerapi
-MYSQL_USER=beerapi_user
-MYSQL_PASSWORD=beerapi_pass
-DB_PORT=3306
-
-# Admin — sobrescreve os padrões do appsettings.json
-AdminUser__Email=admin@beerapi.com
-AdminUser__Password=CHANGE_ME_IN_PRODUCTION
-```
-
-O formato `AdminUser__Password` (duplo underscore) é o padrão do ASP.NET Core para mapear variáveis de ambiente a seções aninhadas do `appsettings.json`.
-
-### CORS (`AllowedOrigins`)
-
-As origens permitidas não são mais fixas no código — vem de configuração (`appsettings.{Environment}.json` ou variável de ambiente):
-
-```json
-{
-  "AllowedOrigins": [ "http://localhost:3000", "http://localhost:5173" ]
-}
-```
-
-Em desenvolvimento (`appsettings.Development.json`), já vem pré-configurado para os dev servers típicos de front-end (React/Vite). Em produção, defina as origens reais do seu front-end (por padrão, nenhuma origem é permitida).
-
----
-
-## 📦 Comandos Úteis
-
-```bash
-# Subir banco
-docker-compose up -d db
-
-# Subir banco + API em containers
-docker-compose up -d --build
-
-# Parar tudo
-docker-compose down
-
-# Remover banco e dados persistidos
-docker-compose down -v
-
-# Checar saúde da API
-curl http://localhost:5157/health
-
-# Adicionar nova migration
-dotnet ef migrations add NomeDaMigration \
-  --project src/BeerApi.Infrastructure \
-  --startup-project src/BeerApi.Api \
+```powershell
+dotnet ef migrations add NomeDaMigration `
+  --project src/BeerApi.Infrastructure `
+  --startup-project src/BeerApi.Api `
   --output-dir Data/Migrations
-
-# Reverter última migration
-dotnet ef migrations remove \
-  --project src/BeerApi.Infrastructure \
-  --startup-project src/BeerApi.Api
-
-# Build completo
-dotnet build
-
-# Rodar todos os testes
-dotnet test
 ```

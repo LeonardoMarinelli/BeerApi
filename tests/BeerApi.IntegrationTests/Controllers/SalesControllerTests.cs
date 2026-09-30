@@ -25,9 +25,9 @@ public class SalesControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task CreateSale_AsBeerOwnerBrewer_ReturnsCreated()
     {
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         var beerId = await CreateBeerAsync(brewer);
-        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client);
+        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
         var dto = new CreateSaleDto(beerId, wholesaler.WholesalerId, 10);
 
@@ -40,10 +40,10 @@ public class SalesControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task CreateSale_AsAnotherBrewersBeer_ReturnsForbidden()
     {
-        var owner = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var owner = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         var beerId = await CreateBeerAsync(owner);
-        var intruder = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
-        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client);
+        var intruder = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
+        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(intruder.AccessToken);
         var dto = new CreateSaleDto(beerId, wholesaler.WholesalerId, 10);
 
@@ -56,9 +56,9 @@ public class SalesControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task CreateSale_AsAdmin_ReturnsCreated()
     {
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         var beerId = await CreateBeerAsync(brewer);
-        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client);
+        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client, factory.EmailSender);
         var adminToken = await AuthHelper.LoginAsAdminAsync(_client);
         _client.UseBearerToken(adminToken);
         var dto = new CreateSaleDto(beerId, wholesaler.WholesalerId, 5);
@@ -72,9 +72,9 @@ public class SalesControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task CreateSale_InvalidQuantity_ReturnsBadRequest()
     {
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         var beerId = await CreateBeerAsync(brewer);
-        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client);
+        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
         var dto = new CreateSaleDto(beerId, wholesaler.WholesalerId, 0);
 
@@ -87,7 +87,7 @@ public class SalesControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task CreateSale_AsWholesalerRole_ReturnsForbidden()
     {
-        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client);
+        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(wholesaler.AccessToken);
         var dto = new CreateSaleDto(1, wholesaler.WholesalerId, 1);
 
@@ -110,9 +110,9 @@ public class SalesControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task GetAll_AsOwnerBrewer_ReturnsOwnSalesOnly()
     {
-        var owner = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var owner = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         var ownerBeerId = await CreateBeerAsync(owner);
-        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client);
+        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(owner.AccessToken);
         await _client.PostAsJsonAsync("/api/sales", new CreateSaleDto(ownerBeerId, wholesaler.WholesalerId, 5));
 

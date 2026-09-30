@@ -13,7 +13,7 @@ public class WholesalersControllerTests(CustomWebApplicationFactory factory)
 
     private async Task<(int BeerId, int WholesalerId)> CreateStockedBeerAsync(int stockQuantity)
     {
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
         var createBeerResponse = await _client.PostAsJsonAsync(
             $"/api/breweries/{brewer.BreweryId}/beers",
@@ -21,7 +21,7 @@ public class WholesalersControllerTests(CustomWebApplicationFactory factory)
         createBeerResponse.EnsureSuccessStatusCode();
         var beer = await createBeerResponse.Content.ReadFromJsonAsync<BeerDto>();
 
-        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client);
+        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
         var saleResponse = await _client.PostAsJsonAsync(
             "/api/sales", new CreateSaleDto(beer!.Id, wholesaler.WholesalerId, stockQuantity));
@@ -34,7 +34,7 @@ public class WholesalersControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task GetAll_Authenticated_ReturnsOk()
     {
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
 
         var response = await _client.GetAsync("/api/wholesalers");
@@ -44,9 +44,34 @@ public class WholesalersControllerTests(CustomWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task GetStock_AfterSale_InvalidatesCachedStock()
+    {
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
+        _client.UseBearerToken(brewer.AccessToken);
+        var createBeerResponse = await _client.PostAsJsonAsync(
+            $"/api/breweries/{brewer.BreweryId}/beers",
+            new CreateBeerDto("Duvel", "Belgian golden ale", 8.5m, 5.0m));
+        createBeerResponse.EnsureSuccessStatusCode();
+        var beer = (await createBeerResponse.Content.ReadFromJsonAsync<BeerDto>())!;
+        var wholesaler = await AuthHelper.RegisterAndLoginWholesalerAsync(_client, factory.EmailSender);
+        var path = $"/api/wholesalers/{wholesaler.WholesalerId}/beers";
+        _client.UseBearerToken(brewer.AccessToken);
+        var initialStock = await _client.GetFromJsonAsync<List<WholesalerBeerDto>>(path);
+        initialStock.Should().BeEmpty();
+
+        var saleResponse = await _client.PostAsJsonAsync(
+            "/api/sales", new CreateSaleDto(beer.Id, wholesaler.WholesalerId, 1));
+        saleResponse.EnsureSuccessStatusCode();
+        var updatedStock = await _client.GetFromJsonAsync<List<WholesalerBeerDto>>(path);
+        _client.ClearAuthorization();
+
+        updatedStock.Should().ContainSingle(item => item.BeerId == beer.Id && item.Stock == 1);
+    }
+
+    [Fact]
     public async Task GetStock_WholesalerDoesNotExist_ReturnsNotFound()
     {
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
 
         var response = await _client.GetAsync("/api/wholesalers/999999/beers");
@@ -59,7 +84,7 @@ public class WholesalersControllerTests(CustomWebApplicationFactory factory)
     public async Task GetQuote_ValidRequest_AppliesDiscountForOrderAboveTen()
     {
         var (beerId, wholesalerId) = await CreateStockedBeerAsync(stockQuantity: 30);
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
         var request = new QuoteRequestDto([new QuoteItemRequestDto(beerId, 15)]);
 
@@ -75,7 +100,7 @@ public class WholesalersControllerTests(CustomWebApplicationFactory factory)
     public async Task GetQuote_EmptyItems_ReturnsBadRequest()
     {
         var (_, wholesalerId) = await CreateStockedBeerAsync(stockQuantity: 10);
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
 
         var response = await _client.PostAsJsonAsync(
@@ -89,7 +114,7 @@ public class WholesalersControllerTests(CustomWebApplicationFactory factory)
     public async Task GetQuote_DuplicateBeerIds_ReturnsBadRequest()
     {
         var (beerId, wholesalerId) = await CreateStockedBeerAsync(stockQuantity: 10);
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
         var request = new QuoteRequestDto(
             [new QuoteItemRequestDto(beerId, 2), new QuoteItemRequestDto(beerId, 3)]);
@@ -104,7 +129,7 @@ public class WholesalersControllerTests(CustomWebApplicationFactory factory)
     public async Task GetQuote_QuantityExceedsStock_ReturnsBadRequest()
     {
         var (beerId, wholesalerId) = await CreateStockedBeerAsync(stockQuantity: 5);
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
         var request = new QuoteRequestDto([new QuoteItemRequestDto(beerId, 100)]);
 

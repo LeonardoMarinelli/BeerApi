@@ -1,11 +1,12 @@
 using BeerApi.Application.DTOs;
+using BeerApi.Application.Services.Interfaces;
 using BeerApi.Domain.Entities;
 using BeerApi.Domain.Exceptions;
 using BeerApi.Domain.Interfaces;
 
 namespace BeerApi.Application.Services;
 
-public class BeerService(IBeerRepository beerRepository, IBreweryRepository breweryRepository)
+public class BeerService(IBeerRepository beerRepository, IBreweryRepository breweryRepository) : IBeerService
 {
     private readonly IBeerRepository _beerRepository = beerRepository;
     private readonly IBreweryRepository _breweryRepository = breweryRepository;

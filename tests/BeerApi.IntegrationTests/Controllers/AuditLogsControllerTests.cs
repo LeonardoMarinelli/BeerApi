@@ -22,7 +22,7 @@ public class AuditLogsControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task GetAll_AsBrewer_ReturnsForbidden()
     {
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
 
         var response = await _client.GetAsync("/api/audit-logs");
@@ -48,7 +48,7 @@ public class AuditLogsControllerTests(CustomWebApplicationFactory factory)
     [Fact]
     public async Task GetAll_FilteredByEntityName_ReturnsOnlyMatchingEntries()
     {
-        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client);
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
         _client.UseBearerToken(brewer.AccessToken);
         await _client.PostAsJsonAsync(
             $"/api/breweries/{brewer.BreweryId}/beers",
