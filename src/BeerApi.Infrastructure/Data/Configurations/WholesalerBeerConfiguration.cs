@@ -9,6 +9,7 @@ public class WholesalerBeerConfiguration : IEntityTypeConfiguration<WholesalerBe
     public void Configure(EntityTypeBuilder<WholesalerBeer> builder)
     {
         builder.HasKey(wb => new { wb.WholesalerId, wb.BeerId });
+        builder.Property(wb => wb.Version).IsConcurrencyToken();
 
         builder.HasOne(wb => wb.Wholesaler)
             .WithMany(w => w.WholesalerBeers)

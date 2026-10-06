@@ -64,7 +64,7 @@ public class WholesalerService(IWholesalerRepository wholesalerRepository) : IWh
         }
 
         int totalQuantity = request.Items.Sum(i => i.Quantity);
-        decimal discountPercent = totalQuantity > 20 ? 20m : totalQuantity > 10 ? 10m : 0m;
+        decimal discountPercent = VolumeDiscountPolicy.GetPercent(totalQuantity);
         decimal discountAmount = totalBeforeDiscount * (discountPercent / 100m);
 
         decimal taxRate = 0m;

@@ -23,12 +23,13 @@
         "admin_token": "PASTE_ADMIN_TOKEN_HERE",
         "brewer_token": "PASTE_BREWER_TOKEN_HERE",
         "wholesaler_token": "PASTE_WHOLESALER_TOKEN_HERE",
+        "order_id": "PASTE_ORDER_ID_HERE",
         "refresh_token": "PASTE_REFRESH_TOKEN_HERE",
         "confirmation_url": "PASTE_FULL_CONFIRMATION_URL_HERE",
         "reset_token": "PASTE_PASSWORD_RESET_TOKEN_HERE"
       },
       "dataPropertyOrder": {
-        "&": ["base_url", "admin_token", "brewer_token", "wholesaler_token", "refresh_token", "confirmation_url", "reset_token"]
+        "&": ["base_url", "admin_token", "brewer_token", "wholesaler_token", "order_id", "refresh_token", "confirmation_url", "reset_token"]
       },
       "isPrivate": false,
       "_type": "environment"
@@ -50,6 +51,7 @@
     { "_id": "grp_quote_ok",    "parentId": "grp_wholesalers", "name": "Orçamentos — Sucessos",  "metaSortKey": -2000, "_type": "request_group" },
     { "_id": "grp_quote_err",   "parentId": "grp_wholesalers", "name": "Orçamentos — Erros",     "metaSortKey": -1000, "_type": "request_group" },
     { "_id": "grp_audit",       "parentId": "wrk_beerapi", "name": "🧾 Audit Logs",     "metaSortKey": -500, "_type": "request_group" },
+    { "_id": "grp_domain_features", "parentId": "wrk_beerapi", "name": "📦 Pedidos, Busca e Relatórios", "metaSortKey": 0, "_type": "request_group" },
 
 
     {
@@ -646,6 +648,152 @@
         { "name": "Content-Type", "value": "application/json" }
       ],
       "metaSortKey": -50,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_beer_search",
+      "parentId": "grp_domain_features",
+      "name": "Busca de cervejas — filtros",
+      "method": "GET",
+      "url": "{{ base_url }}/api/beers?q=Duvel&style=StrongGolden&minAbv=8&maxPrice=5&sortBy=price&sortDir=asc&page=1&pageSize=10",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -800,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_beer_cursor",
+      "parentId": "grp_domain_features",
+      "name": "Busca de cervejas — cursor",
+      "method": "GET",
+      "url": "{{ base_url }}/api/beers/cursor?pageSize=5&sortBy=price&sortDir=asc",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -700,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_create_order",
+      "parentId": "grp_domain_features",
+      "name": "Criar pedido (Admin)",
+      "method": "POST",
+      "url": "{{ base_url }}/api/orders",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"wholesalerId\": 1,\n  \"items\": [\n    { \"beerId\": 1, \"quantity\": 8 },\n    { \"beerId\": 2, \"quantity\": 5 }\n  ]\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ admin_token }}" }
+      ],
+      "metaSortKey": -600,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_get_orders",
+      "parentId": "grp_domain_features",
+      "name": "Listar pedidos",
+      "method": "GET",
+      "url": "{{ base_url }}/api/orders?page=1&pageSize=20&status=Pending",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": -500,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_confirm_order",
+      "parentId": "grp_domain_features",
+      "name": "Confirmar pedido (Brewer)",
+      "method": "POST",
+      "url": "{{ base_url }}/api/orders/{{ order_id }}/confirm",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ brewer_token }}" }],
+      "metaSortKey": -400,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_ship_order",
+      "parentId": "grp_domain_features",
+      "name": "Enviar pedido (Brewer)",
+      "method": "POST",
+      "url": "{{ base_url }}/api/orders/{{ order_id }}/ship",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ brewer_token }}" }],
+      "metaSortKey": -300,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_deliver_order",
+      "parentId": "grp_domain_features",
+      "name": "Entregar pedido (Wholesaler)",
+      "method": "POST",
+      "url": "{{ base_url }}/api/orders/{{ order_id }}/deliver",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ wholesaler_token }}" }],
+      "metaSortKey": -200,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_stock_out",
+      "parentId": "grp_domain_features",
+      "name": "Dar saída no estoque",
+      "method": "POST",
+      "url": "{{ base_url }}/api/wholesalers/1/beers/1/stock-out",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"quantity\": 2\n}"
+      },
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Authorization", "value": "Bearer {{ wholesaler_token }}" }
+      ],
+      "metaSortKey": -100,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_report_sales",
+      "parentId": "grp_domain_features",
+      "name": "Relatório de vendas — CSV",
+      "method": "GET",
+      "url": "{{ base_url }}/api/reports/sales?groupBy=month&format=csv",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": 0,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_report_top_beers",
+      "parentId": "grp_domain_features",
+      "name": "Relatório — cervejas mais vendidas",
+      "method": "GET",
+      "url": "{{ base_url }}/api/reports/top-beers?limit=10&format=json",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": 100,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_report_stock",
+      "parentId": "grp_domain_features",
+      "name": "Relatório — estoque baixo",
+      "method": "GET",
+      "url": "{{ base_url }}/api/reports/stock?lowOnly=true&format=json",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": 200,
+      "_type": "request"
+    },
+
+    {
+      "_id": "req_report_orders_status",
+      "parentId": "grp_domain_features",
+      "name": "Relatório — pedidos por status",
+      "method": "GET",
+      "url": "{{ base_url }}/api/reports/orders-by-status?format=json",
+      "headers": [{ "name": "Authorization", "value": "Bearer {{ admin_token }}" }],
+      "metaSortKey": 300,
       "_type": "request"
     }
 

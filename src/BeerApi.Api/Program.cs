@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using System.Text.Json.Serialization;
 using BeerApi.Api.Middleware;
 using BeerApi.Api.HealthChecks;
 using BeerApi.Api.Authorization;
@@ -11,6 +12,7 @@ using BeerApi.Infrastructure.Identity;
 using BeerApi.Infrastructure.Repositories;
 using BeerApi.Infrastructure.Services;
 using BeerApi.Infrastructure.Services.Cached;
+using BeerApi.Infrastructure.Services.Messaging;
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authorization;
@@ -42,7 +44,8 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .Enrich.FromLogContext());
 
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 1_048_576);
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddCors(options =>
@@ -125,7 +128,8 @@ builder.Services.AddHybridCache(options =>
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<AppDbContext>()
-    .AddCheck<RedisCacheHealthCheck>("redis");
+    .AddCheck<RedisCacheHealthCheck>("redis")
+    .AddCheck<RabbitMqHealthCheck>("rabbitmq", failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded);
 
 builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
     .AddRoles<IdentityRole>()
@@ -145,28 +149,54 @@ builder.Services.Configure<BearerTokenOptions>(IdentityConstants.BearerScheme, o
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole("Admin"))
     .AddPolicy(AuthorizationPolicies.BrewerOrAdmin, policy => policy.RequireRole("Brewer", "Admin"))
+    .AddPolicy(AuthorizationPolicies.WholesalerOrAdmin, policy => policy.RequireRole("Wholesaler", "Admin"))
+    .AddPolicy(AuthorizationPolicies.OrderParty, policy =>
+    {
+        policy.RequireRole("Brewer", "Wholesaler", "Admin");
+        policy.AddRequirements(new OrderPartyRequirement());
+    })
     .AddPolicy(AuthorizationPolicies.ManageBrewery, policy =>
     {
         policy.RequireRole("Brewer", "Admin");
         policy.AddRequirements(new BreweryOwnerRequirement());
+    })
+    .AddPolicy(AuthorizationPolicies.ManageWholesaler, policy =>
+    {
+        policy.RequireRole("Wholesaler", "Admin");
+        policy.AddRequirements(new WholesalerOwnerRequirement());
     });
 builder.Services.AddSingleton<IAuthorizationHandler, BreweryOwnerAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, WholesalerOwnerAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationHandler, OrderPartyAuthorizationHandler>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IBreweryRepository, BreweryRepository>();
 builder.Services.AddScoped<IBeerRepository, BeerRepository>();
 builder.Services.AddScoped<IWholesalerRepository, WholesalerRepository>();
 builder.Services.AddScoped<ISaleRepository, SaleRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+builder.Services.AddScoped<IReportRepository, ReportRepository>();
 builder.Services.AddScoped<BreweryService>();
 builder.Services.AddScoped<BeerService>();
 builder.Services.AddScoped<WholesalerService>();
 builder.Services.AddScoped<SaleService>();
+builder.Services.AddScoped<OrderService>();
+builder.Services.AddScoped<StockService>(services => new StockService(
+    services.GetRequiredService<IWholesalerRepository>(),
+    services.GetRequiredService<IUnitOfWork>(),
+    services.GetRequiredService<IOutbox>(),
+    builder.Configuration.GetValue("Stock:LowThreshold", 10)));
+builder.Services.AddScoped<ReportService>(services => new ReportService(
+    services.GetRequiredService<IReportRepository>(),
+    builder.Configuration.GetValue("Stock:LowThreshold", 10)));
 if (builder.Configuration.GetValue("Cache:Enabled", true))
 {
     builder.Services.AddScoped<IBreweryService, CachedBreweryService>();
     builder.Services.AddScoped<IBeerService, CachedBeerService>();
     builder.Services.AddScoped<IWholesalerService, CachedWholesalerService>();
     builder.Services.AddScoped<ISaleService, CachedSaleService>();
+    builder.Services.AddScoped<IOrderService, CachedOrderService>();
+    builder.Services.AddScoped<IStockService, CachedStockService>();
 }
 else
 {
@@ -174,10 +204,18 @@ else
     builder.Services.AddScoped<IBeerService>(services => services.GetRequiredService<BeerService>());
     builder.Services.AddScoped<IWholesalerService>(services => services.GetRequiredService<WholesalerService>());
     builder.Services.AddScoped<ISaleService>(services => services.GetRequiredService<SaleService>());
+    builder.Services.AddScoped<IOrderService>(services => services.GetRequiredService<OrderService>());
+    builder.Services.AddScoped<IStockService>(services => services.GetRequiredService<StockService>());
 }
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<AuthTokenService>();
 builder.Services.AddScoped<IMailSender, SmtpMailSender>();
+builder.Services.AddScoped<IOutbox, OutboxStore>();
+builder.Services.AddScoped<OrderNotificationHandler>();
+builder.Services.AddSingleton<RabbitMqConnectionProvider>();
+builder.Services.AddSingleton<IMessagePublisher, RabbitMqMessagePublisher>();
+builder.Services.AddHostedService<OutboxPublisherService>();
+builder.Services.AddHostedService<RabbitMqNotificationConsumerService>();
 builder.Services.AddHostedService<RefreshTokenCleanupService>();
 builder.Services.AddScoped<AuditLogService>();
 

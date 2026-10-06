@@ -1,3 +1,5 @@
+using BeerApi.Domain.Enums;
+
 namespace BeerApi.Domain.Entities;
 
 public class Beer
@@ -6,6 +8,7 @@ public class Beer
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public decimal AlcoholContent { get; set; }
+    public BeerStyle Style { get; set; } = BeerStyle.Other;
 
     /// <summary>Fixed price set by the brewery.</summary>
     public decimal Price { get; set; }

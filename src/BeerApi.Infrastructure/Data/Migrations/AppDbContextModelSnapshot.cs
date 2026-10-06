@@ -102,6 +102,13 @@ namespace BeerApi.Infrastructure.Data.Migrations
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
 
+                    b.Property<string>("Style")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)")
+                        .HasDefaultValue("Other");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BreweryId");
@@ -116,7 +123,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 1,
                             Description = "Uma ale abacial suave e equilibrada com notas de especiarias e baunilha.",
                             Name = "Leffe Blonde",
-                            Price = 2.50m
+                            Price = 2.50m,
+                            Style = "Blonde"
                         },
                         new
                         {
@@ -125,7 +133,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 1,
                             Description = "Uma ale abacial escura e encorpada com notas de caramelo e chocolate.",
                             Name = "Leffe Brune",
-                            Price = 2.50m
+                            Price = 2.50m,
+                            Style = "AbbeyAle"
                         },
                         new
                         {
@@ -134,7 +143,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 1,
                             Description = "Uma triple dourada e forte com caráter frutado e condimentado complexo.",
                             Name = "Leffe Triple",
-                            Price = 3.00m
+                            Price = 3.00m,
+                            Style = "Tripel"
                         },
                         new
                         {
@@ -143,7 +153,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 2,
                             Description = "Chimay Tampa Vermelha — um clássico dubbel trapista com notas frutadas e carameladas.",
                             Name = "Chimay Rouge",
-                            Price = 4.50m
+                            Price = 4.50m,
+                            Style = "Dubbel"
                         },
                         new
                         {
@@ -152,7 +163,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 2,
                             Description = "Chimay Tampa Azul — uma ale escura encorpada e complexa com frutas escuras.",
                             Name = "Chimay Bleue",
-                            Price = 5.00m
+                            Price = 5.00m,
+                            Style = "Quadrupel"
                         },
                         new
                         {
@@ -161,7 +173,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 2,
                             Description = "Chimay Tampa Branca — uma Tripel dourada com final seco e lupulado.",
                             Name = "Chimay Triple",
-                            Price = 4.80m
+                            Price = 4.80m,
+                            Style = "Tripel"
                         },
                         new
                         {
@@ -170,7 +183,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 3,
                             Description = "A icônica ale dourada forte belga — 'diabo' em flamengo.",
                             Name = "Duvel",
-                            Price = 4.00m
+                            Price = 4.00m,
+                            Style = "StrongGolden"
                         },
                         new
                         {
@@ -179,7 +193,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 3,
                             Description = "Uma wit beer belga refrescante com notas de cítrico e coentro.",
                             Name = "Vedett Extra White",
-                            Price = 2.80m
+                            Price = 2.80m,
+                            Style = "Witbier"
                         },
                         new
                         {
@@ -188,7 +203,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 4,
                             Description = "Um clássico dubbel trapista com malte rico, frutas escuras e final seco.",
                             Name = "Westmalle Dubbel",
-                            Price = 3.50m
+                            Price = 3.50m,
+                            Style = "Dubbel"
                         },
                         new
                         {
@@ -197,7 +213,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 4,
                             Description = "O estilo Tripel original — dourado, forte e maravilhosamente complexo.",
                             Name = "Westmalle Tripel",
-                            Price = 4.00m
+                            Price = 4.00m,
+                            Style = "Tripel"
                         },
                         new
                         {
@@ -206,7 +223,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 5,
                             Description = "O mais leve da linha Rochefort, ainda lindamente complexo com frutas âmbar.",
                             Name = "Rochefort 6",
-                            Price = 4.00m
+                            Price = 4.00m,
+                            Style = "AbbeyAle"
                         },
                         new
                         {
@@ -215,7 +233,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 5,
                             Description = "Ale escura rica e complexa com ameixas, figos e uma força reconfortante.",
                             Name = "Rochefort 8",
-                            Price = 4.50m
+                            Price = 4.50m,
+                            Style = "Quadrupel"
                         },
                         new
                         {
@@ -224,7 +243,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 5,
                             Description = "Uma das maiores cervejas do mundo — profundamente complexa, reconfortante e satisfatória.",
                             Name = "Rochefort 10",
-                            Price = 5.50m
+                            Price = 5.50m,
+                            Style = "Quadrupel"
                         },
                         new
                         {
@@ -233,7 +253,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 6,
                             Description = "Mundialmente famosa ale dourada forte com a característica garrafa do elefante rosa.",
                             Name = "Delirium Tremens",
-                            Price = 4.20m
+                            Price = 4.20m,
+                            Style = "StrongGolden"
                         },
                         new
                         {
@@ -242,7 +263,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 7,
                             Description = "Um lager belga premium, fresco e refrescante, produzido desde 1926.",
                             Name = "Stella Artois",
-                            Price = 1.80m
+                            Price = 1.80m,
+                            Style = "Lager"
                         },
                         new
                         {
@@ -251,7 +273,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                             BreweryId = 7,
                             Description = "A witbier belga original, produzida com coentro e casca de laranja.",
                             Name = "Hoegaarden",
-                            Price = 2.20m
+                            Price = 2.20m,
+                            Style = "Witbier"
                         });
                 });
 
@@ -334,6 +357,118 @@ namespace BeerApi.Infrastructure.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BeerApi.Domain.Entities.Order", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BreweryId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("ConfirmedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<DateTime?>("ShippedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("varchar(24)");
+
+                    b.Property<decimal>("TotalBeforeDiscount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("TotalPrice")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.Property<int>("WholesalerId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("BreweryId", "CreatedAt");
+
+                    b.HasIndex("WholesalerId", "CreatedAt");
+
+                    b.ToTable("Orders");
+                });
+
+            modelBuilder.Entity("BeerApi.Domain.Entities.OrderItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BeerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BeerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<decimal>("DiscountedSubtotal")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BeerId");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("OrderItems");
+                });
+
             modelBuilder.Entity("BeerApi.Domain.Entities.RefreshToken", b =>
                 {
                     b.Property<int>("Id")
@@ -395,6 +530,9 @@ namespace BeerApi.Infrastructure.Data.Migrations
                     b.Property<int>("BreweryId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("PricePerUnit")
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
@@ -421,6 +559,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                     b.HasIndex("BeerId");
 
                     b.HasIndex("BreweryId");
+
+                    b.HasIndex("OrderId");
 
                     b.HasIndex("WholesalerId");
 
@@ -481,6 +621,10 @@ namespace BeerApi.Infrastructure.Data.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
                     b.HasKey("WholesalerId", "BeerId");
 
                     b.HasIndex("BeerId");
@@ -492,74 +636,151 @@ namespace BeerApi.Infrastructure.Data.Migrations
                         {
                             WholesalerId = 1,
                             BeerId = 1,
-                            Quantity = 50
+                            Quantity = 50,
+                            Version = 0
                         },
                         new
                         {
                             WholesalerId = 1,
                             BeerId = 4,
-                            Quantity = 30
+                            Quantity = 30,
+                            Version = 0
                         },
                         new
                         {
                             WholesalerId = 1,
                             BeerId = 7,
-                            Quantity = 40
+                            Quantity = 40,
+                            Version = 0
                         },
                         new
                         {
                             WholesalerId = 1,
                             BeerId = 15,
-                            Quantity = 100
+                            Quantity = 100,
+                            Version = 0
                         },
                         new
                         {
                             WholesalerId = 2,
                             BeerId = 5,
-                            Quantity = 20
+                            Quantity = 20,
+                            Version = 0
                         },
                         new
                         {
                             WholesalerId = 2,
                             BeerId = 10,
-                            Quantity = 25
+                            Quantity = 25,
+                            Version = 0
                         },
                         new
                         {
                             WholesalerId = 2,
                             BeerId = 13,
-                            Quantity = 15
+                            Quantity = 15,
+                            Version = 0
                         },
                         new
                         {
                             WholesalerId = 2,
                             BeerId = 14,
-                            Quantity = 35
+                            Quantity = 35,
+                            Version = 0
                         },
                         new
                         {
                             WholesalerId = 3,
                             BeerId = 3,
-                            Quantity = 30
+                            Quantity = 30,
+                            Version = 0
                         },
                         new
                         {
                             WholesalerId = 3,
                             BeerId = 8,
-                            Quantity = 45
+                            Quantity = 45,
+                            Version = 0
                         },
                         new
                         {
                             WholesalerId = 3,
                             BeerId = 12,
-                            Quantity = 20
+                            Quantity = 20,
+                            Version = 0
                         },
                         new
                         {
                             WholesalerId = 3,
                             BeerId = 16,
-                            Quantity = 60
+                            Quantity = 60,
+                            Version = 0
                         });
+                });
+
+            modelBuilder.Entity("BeerApi.Infrastructure.Data.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("json");
+
+                    b.Property<DateTimeOffset?>("ProcessedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessedAt", "NextAttemptAt", "OccurredAt");
+
+                    b.ToTable("OutboxMessages");
+                });
+
+            modelBuilder.Entity("BeerApi.Infrastructure.Data.ProcessedMessage", b =>
+                {
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Consumer")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("DeadLetteredAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<DateTimeOffset?>("ProcessedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("MessageId", "Consumer");
+
+                    b.ToTable("ProcessedMessages");
                 });
 
             modelBuilder.Entity("BeerApi.Infrastructure.Identity.ApplicationUser", b =>
@@ -789,6 +1010,44 @@ namespace BeerApi.Infrastructure.Data.Migrations
                     b.Navigation("Brewery");
                 });
 
+            modelBuilder.Entity("BeerApi.Domain.Entities.Order", b =>
+                {
+                    b.HasOne("BeerApi.Domain.Entities.Brewery", "Brewery")
+                        .WithMany()
+                        .HasForeignKey("BreweryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BeerApi.Domain.Entities.Wholesaler", "Wholesaler")
+                        .WithMany()
+                        .HasForeignKey("WholesalerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Brewery");
+
+                    b.Navigation("Wholesaler");
+                });
+
+            modelBuilder.Entity("BeerApi.Domain.Entities.OrderItem", b =>
+                {
+                    b.HasOne("BeerApi.Domain.Entities.Beer", "Beer")
+                        .WithMany()
+                        .HasForeignKey("BeerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BeerApi.Domain.Entities.Order", "Order")
+                        .WithMany("Items")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Beer");
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("BeerApi.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("BeerApi.Infrastructure.Identity.ApplicationUser", null)
@@ -812,6 +1071,11 @@ namespace BeerApi.Infrastructure.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("BeerApi.Domain.Entities.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("BeerApi.Domain.Entities.Wholesaler", "Wholesaler")
                         .WithMany()
                         .HasForeignKey("WholesalerId")
@@ -821,6 +1085,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                     b.Navigation("Beer");
 
                     b.Navigation("Brewery");
+
+                    b.Navigation("Order");
 
                     b.Navigation("Wholesaler");
                 });
@@ -918,6 +1184,11 @@ namespace BeerApi.Infrastructure.Data.Migrations
             modelBuilder.Entity("BeerApi.Domain.Entities.Brewery", b =>
                 {
                     b.Navigation("Beers");
+                });
+
+            modelBuilder.Entity("BeerApi.Domain.Entities.Order", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("BeerApi.Domain.Entities.Wholesaler", b =>

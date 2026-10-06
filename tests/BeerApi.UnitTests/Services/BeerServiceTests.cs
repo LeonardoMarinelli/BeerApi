@@ -2,8 +2,10 @@ using AwesomeAssertions;
 using BeerApi.Application.DTOs;
 using BeerApi.Application.Services;
 using BeerApi.Domain.Entities;
+using BeerApi.Domain.Enums;
 using BeerApi.Domain.Exceptions;
 using BeerApi.Domain.Interfaces;
+using BeerApi.Domain.Queries;
 using NSubstitute;
 
 namespace BeerApi.UnitTests.Services;
@@ -44,6 +46,85 @@ public class BeerServiceTests
 
         result.Should().ContainSingle()
             .Which.Should().BeEquivalentTo(new BeerDto(1, "Duvel", "", 8.5m, 5m, 1, "Duvel Moortgat"));
+    }
+
+    [Fact]
+    public async Task SearchAsync_ForwardsValidatedFiltersAndMapsResults()
+    {
+        var brewery = new Brewery { Id = 1, Name = "Hoegaarden" };
+        var beers = new List<Beer>
+        {
+            new() { Id = 16, Name = "Hoegaarden", BreweryId = 1, Brewery = brewery, Style = BeerStyle.Witbier }
+        };
+        var filters = new BeerSearchFiltersDto
+        {
+            Style = BeerStyle.Witbier,
+            MinAbv = 4m,
+            SortBy = "price",
+            SortDir = "desc"
+        };
+        _beerRepository.SearchAsync(Arg.Any<BeerSearchCriteria>(), 2, 5, Arg.Any<CancellationToken>())
+            .Returns((beers, 1));
+
+        var result = await _sut.SearchAsync(filters, 2, 5);
+
+        result.Items.Should().ContainSingle().Which.Style.Should().Be(BeerStyle.Witbier);
+        result.TotalCount.Should().Be(1);
+        await _beerRepository.Received(1).SearchAsync(
+            Arg.Is<BeerSearchCriteria>(criteria =>
+                criteria.Style == BeerStyle.Witbier &&
+                criteria.MinAbv == 4m &&
+                criteria.SortBy == BeerSortField.Price &&
+                criteria.SortDirection == SortDirection.Descending),
+            2,
+            5,
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task SearchAsync_MinimumExceedsMaximum_ThrowsBusinessException()
+    {
+        var filters = new BeerSearchFiltersDto { MinPrice = 5m, MaxPrice = 4m };
+
+        var act = () => _sut.SearchAsync(filters, 1, 20);
+
+        await act.Should().ThrowAsync<BusinessException>();
+    }
+
+    [Fact]
+    public async Task SearchCursorAsync_NameSort_ThrowsBusinessException()
+    {
+        var filters = new BeerSearchFiltersDto { SortBy = "name" };
+
+        var act = () => _sut.SearchCursorAsync(filters, 20, null);
+
+        await act.Should().ThrowAsync<BusinessException>();
+    }
+
+    [Fact]
+    public async Task SearchCursorAsync_InvalidCursor_ThrowsBusinessException()
+    {
+        var act = () => _sut.SearchCursorAsync(new BeerSearchFiltersDto(), 20, "!!!");
+
+        await act.Should().ThrowAsync<BusinessException>();
+    }
+
+    [Fact]
+    public async Task SearchCursorAsync_CursorWithDifferentFilters_ThrowsBusinessException()
+    {
+        var brewery = new Brewery { Id = 1, Name = "Duvel" };
+        var beers = new List<Beer>
+        {
+            new() { Id = 1, Name = "Duvel", BreweryId = 1, Brewery = brewery },
+            new() { Id = 2, Name = "Duvel 2", BreweryId = 1, Brewery = brewery }
+        };
+        _beerRepository.SearchCursorAsync(Arg.Any<BeerSearchCriteria>(), null, 2, Arg.Any<CancellationToken>())
+            .Returns(beers);
+        var firstPage = await _sut.SearchCursorAsync(new BeerSearchFiltersDto(), 1, null);
+
+        var act = () => _sut.SearchCursorAsync(new BeerSearchFiltersDto { Q = "Duvel" }, 1, firstPage.NextCursor);
+
+        await act.Should().ThrowAsync<BusinessException>();
     }
 
     [Fact]

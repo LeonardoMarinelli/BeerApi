@@ -42,6 +42,23 @@ services:
       - "1025:1025"
       - "8025:8025"
 
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: beerapi_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-beerapi}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-beerapi_pass}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   api:
     build:
       context: .
@@ -55,6 +72,8 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: 8080
@@ -69,6 +88,12 @@ services:
       Smtp__Host: mailpit
       Smtp__Port: 1025
       Smtp__FromAddress: no-reply@beerapi.local
+      RabbitMQ__Host: rabbitmq
+      RabbitMQ__Port: 5672
+      RabbitMQ__Username: ${RABBITMQ_USER:-beerapi}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-beerapi_pass}
+      RabbitMQ__VirtualHost: /
+      Stock__LowThreshold: ${STOCK_LOW_THRESHOLD:-10}
       AdminUser__Email: ${AdminUser__Email:-admin@beerapi.com}
       AdminUser__Password: ${AdminUser__Password:-Admin@123!}
     ports:
@@ -90,6 +115,4 @@ services:
 
 volumes:
   beerapi_mysql_data:
-    driver: local
   beerapi_redis_data:
-    driver: local

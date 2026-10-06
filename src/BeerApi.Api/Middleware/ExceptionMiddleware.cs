@@ -26,6 +26,12 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
             await WriteProblemAsync(context, StatusCodes.Status400BadRequest,
                 "Violação de regra de negócio", ex.Message);
         }
+        catch (ConflictException ex)
+        {
+            _logger.LogWarning(ex, "Request conflicts with current resource state");
+            await WriteProblemAsync(context, StatusCodes.Status409Conflict,
+                "Conflito", ex.Message);
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");

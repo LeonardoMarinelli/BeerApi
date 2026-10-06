@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Testcontainers.MySql;
+using Testcontainers.RabbitMq;
 using Testcontainers.Redis;
 
 namespace BeerApi.IntegrationTests;
@@ -29,6 +30,10 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         .WithPassword("beerapi_test")
         .Build();
     private readonly RedisContainer _redisContainer = new RedisBuilder("redis:7-alpine").Build();
+    private readonly RabbitMqContainer _rabbitMqContainer = new RabbitMqBuilder("rabbitmq:4-management-alpine")
+        .WithUsername("beerapi_test")
+        .WithPassword("beerapi_test")
+        .Build();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -36,7 +41,11 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             configBuilder.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["AdminUser:Email"] = AdminEmail,
-                ["AdminUser:Password"] = AdminPassword
+                ["AdminUser:Password"] = AdminPassword,
+                ["RabbitMQ:Host"] = _rabbitMqContainer.Hostname,
+                ["RabbitMQ:Port"] = _rabbitMqContainer.GetMappedPublicPort(RabbitMqBuilder.RabbitMqPort).ToString(),
+                ["RabbitMQ:Username"] = "beerapi_test",
+                ["RabbitMQ:Password"] = "beerapi_test"
             }));
 
         builder.ConfigureServices(services =>
@@ -67,11 +76,16 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         });
     }
 
-    public Task InitializeAsync() => Task.WhenAll(_mysqlContainer.StartAsync(), _redisContainer.StartAsync());
+    public Task InitializeAsync() => Task.WhenAll(
+        _mysqlContainer.StartAsync(),
+        _redisContainer.StartAsync(),
+        _rabbitMqContainer.StartAsync());
 
     async Task IAsyncLifetime.DisposeAsync()
     {
+        Dispose();
         await _redisContainer.DisposeAsync();
+        await _rabbitMqContainer.DisposeAsync();
         await _mysqlContainer.DisposeAsync();
     }
 }

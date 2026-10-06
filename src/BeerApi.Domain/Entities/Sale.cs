@@ -7,6 +7,7 @@ public class Sale
     public int BreweryId { get; set; }
     public int WholesalerId { get; set; }
     public int BeerId { get; set; }
+    public int? OrderId { get; set; }
     public int Quantity { get; set; }
     public decimal PricePerUnit { get; set; }
     public decimal TotalPrice { get; set; }
@@ -19,4 +20,5 @@ public class Sale
     public Brewery Brewery { get; set; } = null!;
     public Wholesaler Wholesaler { get; set; } = null!;
     public Beer Beer { get; set; } = null!;
+    public Order? Order { get; set; }
 }
