@@ -1,5 +1,6 @@
 using BeerApi.Domain.Entities;
 using BeerApi.Domain.Interfaces;
+using BeerApi.Domain.Exceptions;
 using BeerApi.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -39,8 +40,16 @@ public class WholesalerRepository(AppDbContext context) : IWholesalerRepository
 
     public async Task UpdateStockEntryAsync(WholesalerBeer entry, CancellationToken ct = default)
     {
+        entry.Version++;
         _context.WholesalerBeers.Update(entry);
-        await _context.SaveChangesAsync(ct);
+        try
+        {
+            await _context.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictException("O estoque foi atualizado por outra operação. Recarregue e tente novamente.");
+        }
     }
 
     public async Task<bool> ExistsAsync(int id, CancellationToken ct = default) =>

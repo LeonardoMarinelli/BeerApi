@@ -26,6 +26,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Wholesaler> Wholesalers => Set<Wholesaler>();
     public DbSet<WholesalerBeer> WholesalerBeers => Set<WholesalerBeer>();
     public DbSet<Sale> Sales => Set<Sale>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<ProcessedMessage> ProcessedMessages => Set<ProcessedMessage>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
@@ -65,7 +69,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
         foreach (var entry in ChangeTracker.Entries())
         {
-            if (entry.Entity is AuditLog or RefreshToken) continue;
+            if (entry.Entity is AuditLog or RefreshToken or OutboxMessage or ProcessedMessage) continue;
             if (entry.State is EntityState.Detached or EntityState.Unchanged) continue;
 
             var action = entry.State switch

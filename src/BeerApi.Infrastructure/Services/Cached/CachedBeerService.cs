@@ -14,6 +14,12 @@ public sealed class CachedBeerService(BeerService service, HybridCache cache) : 
             tags: [CacheTags.BreweryBeers(breweryId)],
             cancellationToken: ct);
 
+    public Task<PagedResultDto<BeerDto>> SearchAsync(BeerSearchFiltersDto filters, int page, int pageSize, CancellationToken ct = default) =>
+        service.SearchAsync(filters, page, pageSize, ct);
+
+    public Task<CursorPageResultDto<BeerDto>> SearchCursorAsync(BeerSearchFiltersDto filters, int pageSize, string? cursor, CancellationToken ct = default) =>
+        service.SearchCursorAsync(filters, pageSize, cursor, ct);
+
     public async Task<BeerDto> GetByIdAsync(int id, CancellationToken ct = default) =>
         await cache.GetOrCreateAsync(
             $"beers:item:{id}",

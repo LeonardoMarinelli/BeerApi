@@ -67,7 +67,7 @@ public class SaleService(
         return new SaleDto(
             sale.Id, beer.Id, beer.Name,
             wholesaler.Id, wholesaler.Name,
-            dto.Quantity, beer.Price, sale.TotalPrice, sale.TaxRate, sale.SaleDate);
+            dto.Quantity, beer.Price, sale.TotalPrice, sale.TaxRate, sale.SaleDate, sale.OrderId);
     }
 
     public async Task<PagedResultDto<SaleDto>> GetAllAsync(int page, int pageSize, int? breweryId, CancellationToken ct = default)
@@ -76,7 +76,7 @@ public class SaleService(
         var items = sales.Select(s => new SaleDto(
             s.Id, s.BeerId, s.Beer.Name,
             s.WholesalerId, s.Wholesaler.Name,
-            s.Quantity, s.PricePerUnit, s.TotalPrice, s.TaxRate, s.SaleDate));
+            s.Quantity, s.PricePerUnit, s.TotalPrice, s.TaxRate, s.SaleDate, s.OrderId));
         return new PagedResultDto<SaleDto>(items, page, pageSize, totalCount);
     }
 }

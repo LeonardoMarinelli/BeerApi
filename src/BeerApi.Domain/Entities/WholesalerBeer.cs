@@ -8,6 +8,7 @@ public class WholesalerBeer
 
     /// <summary>Current stock quantity held by this wholesaler.</summary>
     public int Quantity { get; set; }
+    public int Version { get; set; }
 
     public Wholesaler Wholesaler { get; set; } = null!;
     public Beer Beer { get; set; } = null!;

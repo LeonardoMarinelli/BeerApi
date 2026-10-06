@@ -12,7 +12,8 @@ public record SaleDto(
     decimal PricePerUnit,
     decimal TotalPrice,
     decimal TaxRate,
-    DateTime SaleDate);
+    DateTime SaleDate,
+    int? OrderId = null);
 
 public record CreateSaleDto(
     [Range(1, int.MaxValue)] int BeerId,
