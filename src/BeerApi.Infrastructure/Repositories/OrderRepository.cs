@@ -27,7 +27,6 @@ public sealed class OrderRepository(AppDbContext context) : IOrderRepository
 
     public async Task UpdateAsync(Order order, CancellationToken ct = default)
     {
-        context.Orders.Update(order);
         try
         {
             await context.SaveChangesAsync(ct);

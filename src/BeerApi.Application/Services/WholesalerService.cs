@@ -32,18 +32,22 @@ public class WholesalerService(IWholesalerRepository wholesalerRepository) : IWh
 
     public async Task<QuoteResponseDto> GetQuoteAsync(int wholesalerId, QuoteRequestDto request, CancellationToken ct = default)
     {
-        if (request.Items is null || request.Items.Count == 0)
-            throw new BusinessException("O pedido não pode estar vazio.");
+        if (request.Items is null || request.Items.Count is 0 or > 50)
+            throw new BusinessException("A cotação deve conter entre 1 e 50 itens.");
+        if (request.Items.Any(item => item.Quantity is < 1 or > 1_000_000))
+            throw new BusinessException("A quantidade de cada item deve estar entre 1 e 1.000.000.");
 
         var wholesaler = await _wholesalerRepository.GetByIdWithStockAsync(wholesalerId, ct)
-            ?? throw new BusinessException($"Atacadista com id '{wholesalerId}' não existe.");
+            ?? throw new NotFoundException("Atacadista", wholesalerId);
 
         var beerIds = request.Items.Select(i => i.BeerId).ToList();
         if (beerIds.Count != beerIds.Distinct().Count())
             throw new BusinessException("O pedido não pode conter cervejas duplicadas.");
 
+        var discountPercent = VolumeDiscountPolicy.GetPercent(request.Items.Sum(item => item.Quantity));
         var responseItems = new List<QuoteItemResponseDto>();
         decimal totalBeforeDiscount = 0m;
+        decimal totalAfterDiscount = 0m;
 
         foreach (var item in request.Items)
         {
@@ -57,19 +61,24 @@ public class WholesalerService(IWholesalerRepository wholesalerRepository) : IWh
                     $"A quantidade solicitada ({item.Quantity}) para '{stockEntry.Beer.Name}' " +
                     $"excede o estoque disponível ({stockEntry.Quantity}).");
 
-            var subtotal = item.Quantity * stockEntry.Beer.Price;
+            var subtotal = decimal.Round(
+                item.Quantity * stockEntry.Beer.Price,
+                2,
+                MidpointRounding.AwayFromZero);
             totalBeforeDiscount += subtotal;
+            totalAfterDiscount += decimal.Round(
+                subtotal * (100m - discountPercent) / 100m,
+                2,
+                MidpointRounding.AwayFromZero);
             responseItems.Add(new QuoteItemResponseDto(
                 stockEntry.Beer.Name, item.Quantity, stockEntry.Beer.Price, subtotal));
         }
 
-        int totalQuantity = request.Items.Sum(i => i.Quantity);
-        decimal discountPercent = VolumeDiscountPolicy.GetPercent(totalQuantity);
-        decimal discountAmount = totalBeforeDiscount * (discountPercent / 100m);
+        var discountAmount = totalBeforeDiscount - totalAfterDiscount;
 
         decimal taxRate = 0m;
-        decimal taxAmount = (totalBeforeDiscount - discountAmount) * (taxRate / 100m);
-        decimal totalPrice = totalBeforeDiscount - discountAmount + taxAmount;
+        decimal taxAmount = totalAfterDiscount * (taxRate / 100m);
+        decimal totalPrice = totalAfterDiscount + taxAmount;
 
         return new QuoteResponseDto(
             wholesaler.Name,

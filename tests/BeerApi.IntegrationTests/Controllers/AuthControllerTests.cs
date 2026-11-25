@@ -34,6 +34,7 @@ public class AuthControllerTests(CustomWebApplicationFactory factory)
         var response = await _client.PostAsJsonAsync("/api/auth/register/brewer", dto);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync()).Should().NotContain(email);
     }
 
     [Fact]
@@ -83,6 +84,22 @@ public class AuthControllerTests(CustomWebApplicationFactory factory)
 
         replayResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
         rotatedResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task RefreshToken_LockedOutUserCannotRefresh()
+    {
+        var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            await _client.PostAsJsonAsync(
+                "/api/auth/login", new { email = brewer.Email, password = "wrong-password" });
+        }
+
+        var response = await _client.PostAsJsonAsync(
+            "/api/auth/refresh", new RefreshTokenRequestDto(brewer.RefreshToken));
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]

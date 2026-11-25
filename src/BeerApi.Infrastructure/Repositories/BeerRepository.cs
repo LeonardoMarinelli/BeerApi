@@ -83,7 +83,6 @@ public class BeerRepository(AppDbContext context) : IBeerRepository
 
     public async Task UpdateAsync(Beer beer, CancellationToken ct = default)
     {
-        _context.Beers.Update(beer);
         await _context.SaveChangesAsync(ct);
     }
 

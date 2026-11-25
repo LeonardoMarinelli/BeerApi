@@ -67,6 +67,24 @@ public class OrderServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_MaximumQuantityAndPrice_PreservesOrderTotal()
+    {
+        var brewery = new Brewery { Id = 1, Name = "Duvel Moortgat" };
+        var beers = new[]
+        {
+            new Beer { Id = 1, Name = "Duvel", BreweryId = 1, Brewery = brewery, Price = 99_999.99m }
+        };
+        _wholesalerRepository.GetByIdAsync(7, Arg.Any<CancellationToken>())
+            .Returns(new Wholesaler { Id = 7, Name = "Atacadista" });
+        _beerRepository.GetByIdsWithBreweryAsync(Arg.Any<IReadOnlyCollection<int>>(), Arg.Any<CancellationToken>())
+            .Returns(beers);
+
+        var result = await _sut.CreateAsync(7, new CreateOrderDto(null, [new CreateOrderItemDto(1, 1_000_000)]));
+
+        result.TotalBeforeDiscount.Should().Be(99_999_990_000m);
+    }
+
+    [Fact]
     public async Task CreateAsync_BeersComeFromDifferentBreweries_ThrowsBusinessException()
     {
         _wholesalerRepository.GetByIdAsync(7, Arg.Any<CancellationToken>()).Returns(new Wholesaler { Id = 7 });

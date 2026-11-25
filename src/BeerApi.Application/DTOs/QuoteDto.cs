@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace BeerApi.Application.DTOs;
 
-public record QuoteRequestDto([Required, MinLength(1)] List<QuoteItemRequestDto> Items);
+public record QuoteRequestDto([Required, MinLength(1), MaxLength(50)] List<QuoteItemRequestDto> Items);
 
 public record QuoteItemRequestDto(
     [Range(1, int.MaxValue)] int BeerId,

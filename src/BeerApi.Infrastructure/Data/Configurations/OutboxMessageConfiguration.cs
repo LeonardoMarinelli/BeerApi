@@ -11,6 +11,6 @@ public class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage
         builder.Property(message => message.EventType).HasMaxLength(100).IsRequired();
         builder.Property(message => message.Payload).HasColumnType("json").IsRequired();
         builder.Property(message => message.LastError).HasMaxLength(2000);
-        builder.HasIndex(message => new { message.ProcessedAt, message.NextAttemptAt, message.OccurredAt });
+        builder.HasIndex(message => new { message.ProcessedAt, message.DeadLetteredAt, message.NextAttemptAt, message.OccurredAt });
     }
 }

@@ -78,14 +78,14 @@ public class WholesalerServiceTests
     }
 
     [Fact]
-    public async Task GetQuoteAsync_WholesalerDoesNotExist_ThrowsBusinessException()
+    public async Task GetQuoteAsync_WholesalerDoesNotExist_ThrowsNotFoundException()
     {
         _wholesalerRepository.GetByIdWithStockAsync(1, Arg.Any<CancellationToken>()).Returns((Wholesaler?)null);
         var request = new QuoteRequestDto([new QuoteItemRequestDto(1, 5)]);
 
         var act = () => _sut.GetQuoteAsync(1, request);
 
-        await act.Should().ThrowAsync<BusinessException>();
+        await act.Should().ThrowAsync<NotFoundException>();
     }
 
     [Fact]
@@ -139,5 +139,31 @@ public class WholesalerServiceTests
         result.DiscountPercent.Should().Be(expectedDiscountPercent);
         result.TotalBeforeDiscount.Should().Be(quantity * 10m);
         result.TotalPrice.Should().Be(quantity * 10m * (1 - expectedDiscountPercent / 100m));
+    }
+
+    [Fact]
+    public async Task GetQuoteAsync_RoundsDiscountedSubtotalLikeOrderCreation()
+    {
+        var wholesaler = BuildWholesalerWithStock(beerId: 1, quantity: 100, price: 0.01m);
+        _wholesalerRepository.GetByIdWithStockAsync(1, Arg.Any<CancellationToken>()).Returns(wholesaler);
+
+        var result = await _sut.GetQuoteAsync(
+            1,
+            new QuoteRequestDto([new QuoteItemRequestDto(1, 11)]));
+
+        result.TotalBeforeDiscount.Should().Be(0.11m);
+        result.DiscountAmount.Should().Be(0.01m);
+        result.TotalPrice.Should().Be(0.10m);
+    }
+
+    [Fact]
+    public async Task GetQuoteAsync_TooManyItems_ThrowsBusinessException()
+    {
+        var request = new QuoteRequestDto(
+            Enumerable.Range(1, 51).Select(id => new QuoteItemRequestDto(id, 1)).ToList());
+
+        var act = () => _sut.GetQuoteAsync(1, request);
+
+        await act.Should().ThrowAsync<BusinessException>();
     }
 }

@@ -46,6 +46,30 @@ public class AuditLogsControllerTests(CustomWebApplicationFactory factory)
     }
 
     [Fact]
+    public async Task RegisterBrewer_AuditsBreweryWithGeneratedIdAndExcludesIdentityData()
+    {
+        var dto = new RegisterBrewerDto(
+            $"brewer-{Guid.NewGuid():N}@test.local", AuthHelper.TestPassword,
+            "John", "Brewer", $"Brewery {Guid.NewGuid():N}", "Belgium", "desc");
+        var registration = await _client.PostAsJsonAsync("/api/auth/register/brewer", dto);
+        registration.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        _client.UseBearerToken(await AuthHelper.LoginAsAdminAsync(_client));
+        var breweryResponse = await _client.GetAsync("/api/audit-logs?entityName=Brewery");
+        var identityResponse = await _client.GetAsync("/api/audit-logs?entityName=ApplicationUser");
+        _client.ClearAuthorization();
+
+        breweryResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var breweries = await breweryResponse.Content.ReadFromJsonAsync<PagedResultDto<AuditLogDto>>();
+        breweries!.Items.Any(entry =>
+            entry.Action == "Create" && int.TryParse(entry.EntityId, out var id) && id > 0).Should().BeTrue();
+
+        identityResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var identityLogs = await identityResponse.Content.ReadFromJsonAsync<PagedResultDto<AuditLogDto>>();
+        identityLogs!.Items.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task GetAll_FilteredByEntityName_ReturnsOnlyMatchingEntries()
     {
         var brewer = await AuthHelper.RegisterAndLoginBrewerAsync(_client, factory.EmailSender);

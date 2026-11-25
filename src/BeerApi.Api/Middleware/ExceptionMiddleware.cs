@@ -1,5 +1,7 @@
 using BeerApi.Domain.Exceptions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using MySqlConnector;
 
 namespace BeerApi.Api.Middleware;
 
@@ -13,6 +15,9 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
         try
         {
             await _next(context);
+        }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
         }
         catch (NotFoundException ex)
         {
@@ -31,6 +36,12 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
             _logger.LogWarning(ex, "Request conflicts with current resource state");
             await WriteProblemAsync(context, StatusCodes.Status409Conflict,
                 "Conflito", ex.Message);
+        }
+        catch (DbUpdateException ex) when (ex.GetBaseException() is MySqlException { Number: 1062 or 1451 or 1452 })
+        {
+            _logger.LogWarning(ex, "Database constraint conflict");
+            await WriteProblemAsync(context, StatusCodes.Status409Conflict,
+                "Conflito de dados", "A operação conflita com os dados existentes.");
         }
         catch (Exception ex)
         {

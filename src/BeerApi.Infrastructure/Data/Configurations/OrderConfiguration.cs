@@ -11,10 +11,10 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasKey(order => order.Id);
         builder.Property(order => order.Status).HasConversion<string>().HasMaxLength(24).IsRequired();
         builder.Property(order => order.CancelReason).HasMaxLength(500);
-        builder.Property(order => order.TotalBeforeDiscount).HasPrecision(12, 2);
+        builder.Property(order => order.TotalBeforeDiscount).HasPrecision(15, 2);
         builder.Property(order => order.DiscountPercent).HasPrecision(5, 2);
-        builder.Property(order => order.DiscountAmount).HasPrecision(12, 2);
-        builder.Property(order => order.TotalPrice).HasPrecision(12, 2);
+        builder.Property(order => order.DiscountAmount).HasPrecision(15, 2);
+        builder.Property(order => order.TotalPrice).HasPrecision(15, 2);
         builder.Property(order => order.Version).IsConcurrencyToken();
         builder.HasIndex(order => order.Status);
         builder.HasIndex(order => new { order.BreweryId, order.CreatedAt });
