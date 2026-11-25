@@ -25,8 +25,8 @@ public class SaleService(
         var wholesaler = await _wholesalerRepository.GetByIdAsync(dto.WholesalerId, ct)
             ?? throw new NotFoundException("Atacadista", dto.WholesalerId);
 
-        if (dto.Quantity <= 0)
-            throw new BusinessException("A quantidade da venda deve ser maior que zero.");
+        if (dto.Quantity is < 1 or > 1_000_000)
+            throw new BusinessException("A quantidade da venda deve estar entre 1 e 1.000.000.");
 
         Sale sale = null!;
 
@@ -45,6 +45,8 @@ public class SaleService(
             }
             else
             {
+                if (dto.Quantity > int.MaxValue - stockEntry.Quantity)
+                    throw new BusinessException("A quantidade excede o limite máximo do estoque.");
                 stockEntry.Quantity += dto.Quantity;
                 await _wholesalerRepository.UpdateStockEntryAsync(stockEntry, ct);
             }

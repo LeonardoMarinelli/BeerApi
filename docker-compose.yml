@@ -4,16 +4,16 @@ services:
     container_name: beerapi_mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_secret}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-beerapi}
       MYSQL_USER: ${MYSQL_USER:-beerapi_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-beerapi_pass}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
     ports:
       - "${DB_PORT:-3306}:3306"
     volumes:
       - beerapi_mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "--password=${MYSQL_ROOT_PASSWORD:-root_secret}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "--password=${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,7 +48,7 @@ services:
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-beerapi}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-beerapi_pass}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
     ports:
       - "${RABBITMQ_PORT:-5672}:5672"
       - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
@@ -81,7 +81,8 @@ services:
       DB_PORT: 3306
       MYSQL_DATABASE: ${MYSQL_DATABASE:-beerapi}
       MYSQL_USER: ${MYSQL_USER:-beerapi_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-beerapi_pass}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+      ForwardedHeaders__KnownProxies__0: ${FORWARDED_HEADERS_KNOWN_PROXIES_0:-}
       REDIS_CONNECTION: redis:6379
       Cache__Enabled: ${CACHE_ENABLED:-true}
       App__PublicBaseUrl: ${APP_PUBLIC_BASE_URL:-http://localhost:5157}
@@ -91,11 +92,11 @@ services:
       RabbitMQ__Host: rabbitmq
       RabbitMQ__Port: 5672
       RabbitMQ__Username: ${RABBITMQ_USER:-beerapi}
-      RabbitMQ__Password: ${RABBITMQ_PASSWORD:-beerapi_pass}
+      RabbitMQ__Password: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
       RabbitMQ__VirtualHost: /
       Stock__LowThreshold: ${STOCK_LOW_THRESHOLD:-10}
       AdminUser__Email: ${AdminUser__Email:-admin@beerapi.com}
-      AdminUser__Password: ${AdminUser__Password:-Admin@123!}
+      AdminUser__Password: ${AdminUser__Password:?AdminUser__Password is required}
     ports:
       - "5157:8080"
 
@@ -108,7 +109,7 @@ services:
     environment:
       BASE_URL: http://api:8080
       ADMIN_EMAIL: ${AdminUser__Email:-admin@beerapi.com}
-      ADMIN_PASSWORD: ${AdminUser__Password:-Admin@123!}
+      ADMIN_PASSWORD: ${AdminUser__Password:?AdminUser__Password is required}
     volumes:
       - ./loadtests/k6:/scripts:ro
     command: ["run", "/scripts/read-heavy.js"]

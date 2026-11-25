@@ -136,6 +136,8 @@ public sealed class OrderService(
                 }
                 else
                 {
+                    if (item.Quantity > int.MaxValue - stock.Quantity)
+                        throw new BusinessException("A quantidade excede o limite máximo do estoque.");
                     stock.Quantity += item.Quantity;
                     await wholesalerRepository.UpdateStockEntryAsync(stock, ct);
                 }

@@ -58,14 +58,21 @@ public class AuthService(
 
                 var result = await _userManager.CreateAsync(user, dto.Password);
                 if (!result.Succeeded)
+                {
+                    if (result.Errors.Any(error => error.Code is "DuplicateEmail" or "DuplicateUserName"))
+                        throw new BusinessException("Não foi possível concluir o cadastro.");
                     throw new BusinessException(string.Join("; ", result.Errors.Select(e => e.Description)));
+                }
 
-                await _userManager.AddToRoleAsync(user, "Brewer");
+                var roleResult = await _userManager.AddToRoleAsync(user, "Brewer");
+                if (!roleResult.Succeeded)
+                    throw new BusinessException(string.Join("; ", roleResult.Errors.Select(error => error.Description)));
                 await transaction.CommitAsync(ct);
             }
             catch
             {
                 await transaction.RollbackAsync(ct);
+                _context.ChangeTracker.Clear();
                 throw;
             }
         });
@@ -102,14 +109,21 @@ public class AuthService(
 
                 var result = await _userManager.CreateAsync(user, dto.Password);
                 if (!result.Succeeded)
+                {
+                    if (result.Errors.Any(error => error.Code is "DuplicateEmail" or "DuplicateUserName"))
+                        throw new BusinessException("Não foi possível concluir o cadastro.");
                     throw new BusinessException(string.Join("; ", result.Errors.Select(e => e.Description)));
+                }
 
-                await _userManager.AddToRoleAsync(user, "Wholesaler");
+                var roleResult = await _userManager.AddToRoleAsync(user, "Wholesaler");
+                if (!roleResult.Succeeded)
+                    throw new BusinessException(string.Join("; ", roleResult.Errors.Select(error => error.Description)));
                 await transaction.CommitAsync(ct);
             }
             catch
             {
                 await transaction.RollbackAsync(ct);
+                _context.ChangeTracker.Clear();
                 throw;
             }
         });

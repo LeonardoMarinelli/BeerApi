@@ -17,6 +17,11 @@ public sealed class CapturingEmailSender : IMailSender
 
     public string GetLastBody(string email) => _messages[email].Body;
 
+    public int CountWithSubjectPrefix(string email, string subjectPrefix) =>
+        _history.TryGetValue(email, out var messages)
+            ? messages.Count(message => message.Subject.StartsWith(subjectPrefix, StringComparison.Ordinal))
+            : 0;
+
     public async Task<(string Subject, string Body)> WaitForSubjectAsync(string email, string subjectPrefix, TimeSpan timeout)
     {
         using var timeoutSource = new CancellationTokenSource(timeout);

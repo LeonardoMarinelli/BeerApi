@@ -30,6 +30,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<ProcessedMessage> ProcessedMessages => Set<ProcessedMessage>();
+    public DbSet<ProcessedMessageRecipient> ProcessedMessageRecipients => Set<ProcessedMessageRecipient>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
@@ -44,32 +45,36 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         var auditEntries = BuildAuditEntries();
         var result = await base.SaveChangesAsync(cancellationToken);
 
-        foreach (var entry in auditEntries.Where(e => e.EntityId == string.Empty))
-            entry.EntityId = GetEntityId(ChangeTracker.Entries()
-                .First(e => ReferenceEquals(e.Entity, entry)));
+        foreach (var (entityEntry, auditLog) in auditEntries.Where(entry => entry.AuditLog.Action == "Create"))
+        {
+            auditLog.EntityId = GetEntityId(entityEntry);
+            auditLog.NewValues = SerializeValues(entityEntry.CurrentValues);
+        }
 
         if (auditEntries.Count > 0)
         {
-            AuditLogs.AddRange(auditEntries);
+            AuditLogs.AddRange(auditEntries.Select(entry => entry.AuditLog));
             await base.SaveChangesAsync(cancellationToken);
         }
 
         return result;
     }
 
-
-    private List<AuditLog> BuildAuditEntries()
+    private List<(EntityEntry EntityEntry, AuditLog AuditLog)> BuildAuditEntries()
     {
         ChangeTracker.DetectChanges();
 
         var userId = _httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
         var userEmail = _httpContextAccessor?.HttpContext?.User.FindFirstValue(ClaimTypes.Email);
 
-        var auditLogs = new List<AuditLog>();
+        var auditEntries = new List<(EntityEntry, AuditLog)>();
 
         foreach (var entry in ChangeTracker.Entries())
         {
-            if (entry.Entity is AuditLog or RefreshToken or OutboxMessage or ProcessedMessage) continue;
+            if (entry.Entity is AuditLog or RefreshToken or OutboxMessage or ProcessedMessage or ProcessedMessageRecipient) continue;
+            if (entry.Entity is ApplicationUser ||
+                entry.Metadata.ClrType.Namespace?.StartsWith("Microsoft.AspNetCore.Identity", StringComparison.Ordinal) == true)
+                continue;
             if (entry.State is EntityState.Detached or EntityState.Unchanged) continue;
 
             var action = entry.State switch
@@ -94,13 +99,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 UserEmail  = userEmail
             };
 
-            if (action == "Create" && log.EntityId == "0")
-                log.EntityId = string.Empty;
-
-            auditLogs.Add(log);
+            auditEntries.Add((entry, log));
         }
 
-        return auditLogs;
+        return auditEntries;
     }
 
     private static string GetEntityId(EntityEntry entry)

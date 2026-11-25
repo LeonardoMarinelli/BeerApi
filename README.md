@@ -88,7 +88,7 @@ sequenceDiagram
 | 004 | Executar escritas transacionais através da execution strategy do EF Core | MySQL usa retry automático; a operação inteira precisa estar dentro da estratégia para preservar consistência em retries. |
 | 005 | Testar a integração com MySQL, Redis e RabbitMQ via Testcontainers | Exercita persistência, cache e mensageria reais em containers descartáveis; requer Docker durante os testes locais. |
 | 006 | Modelar pedido separado de venda | O pedido mantém o fluxo Pending → Confirmed → Shipped → Delivered/Cancelled; estoque e registros de venda só mudam na entrega. |
-| 007 | Usar outbox transacional com RabbitMQ | Pedido e evento gravam juntos no MySQL; publisher confirms e deduplicação no consumer dão entrega at-least-once. O publisher atual assume uma instância da API. |
+| 007 | Usar outbox transacional com RabbitMQ | Pedido e evento gravam juntos no MySQL; reivindicação com `SKIP LOCKED`, publisher confirms, retries e deduplicação no consumer dão entrega at-least-once entre múltiplas instâncias. |
 | 008 | Usar paginação keyset no catálogo | Cursor estável sobre chave de ordenação e Id evita custo/instabilidade do offset; ordenação por cursor limita-se a Id, preço e teor alcoólico. |
 | 009 | Proteger pedido e estoque com concorrência otimista | Escritas concorrentes retornam 409 em vez de sobrescrever o saldo. |
 | 010 | Gerar CSV com a biblioteca padrão | O formatter escapa delimitadores, limita exportações a 10.000 linhas e protege células iniciadas por caracteres de fórmula sem adicionar dependência. |
@@ -123,6 +123,7 @@ sequenceDiagram
 
 ```powershell
 Copy-Item .env.example .env
+# Preencha MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD, RABBITMQ_PASSWORD e AdminUser__Password no .env
 docker compose up -d --build
 docker compose ps
 ```
@@ -147,9 +148,11 @@ dotnet run --project src/BeerApi.Api
 
 As migrations e o seed de roles/admin são aplicados no startup. O Mailpit captura as mensagens de confirmação e recuperação de senha em `http://localhost:8025`.
 
+Se a API estiver atrás de um proxy reverso, configure `ForwardedHeaders__KnownProxies__0`, `ForwardedHeaders__KnownProxies__1` etc. com os IPs confiáveis do proxy. Cabeçalhos encaminhados por proxies não listados não são confiáveis.
+
 ### Credenciais
 
-O admin local usa `admin@beerapi.com` / `Admin@123!` quando não há valores configurados. Altere `AdminUser__Password` antes de expor a aplicação fora da máquina local; não versione credenciais reais.
+Em `Development`, o admin local usa `admin@beerapi.com` / `Admin@123!` quando não há senha configurada. O perfil do Docker roda em `Production` e exige `MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD`, `RABBITMQ_PASSWORD` e `AdminUser__Password` no `.env`; configure valores fortes e não versione credenciais reais.
 
 ## Autenticação e Autorização
 
@@ -162,7 +165,7 @@ O admin local usa `admin@beerapi.com` / `Admin@123!` quando não há valores con
 
 ## API
 
-As listagens paginadas recebem `page` (padrão 1) e `pageSize` (padrão 20, máximo 100) e retornam `{ items, page, pageSize, totalCount, totalPages }`.
+As listagens paginadas recebem `page` (padrão 1, máximo 10.000) e `pageSize` (padrão 20, máximo 100) e retornam `{ items, page, pageSize, totalCount, totalPages }`.
 
 | Método | Rota | Acesso | Descrição |
 |---|---|---|---|
@@ -185,8 +188,8 @@ As listagens paginadas recebem `page` (padrão 1) e `pageSize` (padrão 20, máx
 | `PUT` | `/api/breweries/{breweryId}/beers/{beerId}` | Brewer proprietário / Admin | Atualizar cerveja |
 | `DELETE` | `/api/breweries/{breweryId}/beers/{beerId}` | Brewer proprietário / Admin | Excluir cerveja |
 | `GET` | `/api/wholesalers` | Autenticado | Listar atacadistas |
-| `GET` | `/api/wholesalers/{id}/beers` | Autenticado | Consultar estoque |
-| `POST` | `/api/wholesalers/{id}/quote` | Autenticado | Calcular orçamento |
+| `GET` | `/api/wholesalers/{id}/beers` | Atacadista proprietário / Admin | Consultar estoque |
+| `POST` | `/api/wholesalers/{id}/quote` | Atacadista proprietário / Admin | Calcular orçamento |
 | `POST` | `/api/wholesalers/{id}/beers/{beerId}/stock-out` | Atacadista proprietário / Admin | Registrar saída; cria alerta ao cruzar o limite de estoque |
 | `POST` | `/api/orders` | Atacadista / Admin | Criar pedido de várias cervejas da mesma cervejaria |
 | `GET` | `/api/orders` | Brewer / Wholesaler / Admin | Listar pedidos paginados, com filtro `status` e escopo por usuário |
@@ -210,8 +213,9 @@ As listagens paginadas recebem `page` (padrão 1) e `pageSize` (padrão 20, máx
 - Um pedido contém de 1 a 50 cervejas da mesma cervejaria. A criação congela preço e desconto; só a entrega cria uma venda por item e incrementa estoque.
 - O fluxo é `Pending → Confirmed → Shipped → Delivered`; `Pending` e `Confirmed` podem ser cancelados. Transições inválidas e atualizações concorrentes retornam `409`.
 - A saída de estoque não pode exceder o saldo. Ao cruzar `Stock__LowThreshold` (padrão 10), o sistema grava um evento de alerta.
-- Pedido/estoque e `OutboxMessage` são persistidos na mesma transação. O publisher usa confirmação do RabbitMQ; consumidores deduplicam por `MessageId` e encaminham falhas após 3 tentativas para a DLQ.
-- A garantia de mensageria é at-least-once; o consumer é idempotente. O publisher em lote pressupõe uma instância ativa; para escalar horizontalmente, a próxima etapa é reivindicar linhas com locking (`SKIP LOCKED`).
+- Pedido/estoque e `OutboxMessage` são persistidos na mesma transação. O publisher reivindica lotes com `FOR UPDATE SKIP LOCKED`, aplica lease e tenta publicar no máximo 10 vezes; falhas terminais ficam no banco para inspeção.
+- A garantia de mensageria é at-least-once; o consumer usa retry durável com TTL, deduplicação por `MessageId` e marcadores por destinatário, e encaminha falhas após 3 tentativas para a DLQ. Registros processados são removidos após 90 dias; falhas terminais permanecem.
+- O marcador por destinatário evita reenviar e-mails já concluídos após uma falha posterior; uma falha entre a aceitação do e-mail pelo SMTP e a gravação do marcador ainda pode causar duplicidade.
 - `OrderPlaced` avisa a cervejaria; mudanças de status avisam o atacadista; cruzar o limite de estoque envia alerta ao atacadista via Mailpit/SMTP.
 - Orçamentos aplicam 0% até 10 unidades, 10% acima de 10 e 20% acima de 20.
 - O imposto atual é 0% (`TaxRate` fica registrado na venda).
@@ -272,6 +276,8 @@ Copie `.env.example` para `.env`. Compose fornece valores locais padrão; config
 | `Auth__AccessTokenMinutes`, `Auth__RefreshTokenDays` | Prazos dos tokens; padrões 15 min / 14 dias |
 | `Cache__ExpirationSeconds`, `Cache__LocalExpirationSeconds` | TTL L2/L1; padrões 300 s / 30 s |
 | `AllowedOrigins` | Origens CORS; em desenvolvimento, localhost:3000 e localhost:5173 |
+| `ForwardedHeaders__KnownProxies__{index}` | IP de um proxy reverso confiável; configure um valor por índice |
+| `FORWARDED_HEADERS_KNOWN_PROXIES_0` | Primeiro IP de proxy confiável no Docker Compose (opcional) |
 
 O Compose direciona SMTP ao Mailpit. Para usar outro provedor no Compose, altere o mapeamento SMTP do serviço `api`; fora do Compose, configure `Smtp__Host`, `Smtp__Port`, `Smtp__Username`, `Smtp__Password` e `Smtp__UseStartTls` no ambiente de execução. As variáveis `RABBITMQ_*` configuram o broker no Compose; a API lê `RabbitMQ__Host`, `RabbitMQ__Port`, `RabbitMQ__Username`, `RabbitMQ__Password` e `RabbitMQ__VirtualHost`.
 

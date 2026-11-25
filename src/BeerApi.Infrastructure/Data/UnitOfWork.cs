@@ -19,6 +19,7 @@ public class UnitOfWork(AppDbContext context) : IUnitOfWork
             catch
             {
                 await transaction.RollbackAsync(ct);
+                context.ChangeTracker.Clear();
                 throw;
             }
         });

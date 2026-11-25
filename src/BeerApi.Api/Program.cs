@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using System.Net;
 using System.Text.Json.Serialization;
 using BeerApi.Api.Middleware;
 using BeerApi.Api.HealthChecks;
@@ -16,10 +17,12 @@ using BeerApi.Infrastructure.Services.Messaging;
 using DotNetEnv;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using MySqlConnector;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -47,6 +50,15 @@ builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 1_048_576);
 builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddHttpContextAccessor();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    foreach (var proxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
+    {
+        if (!string.IsNullOrWhiteSpace(proxy))
+            options.KnownProxies.Add(IPAddress.Parse(proxy));
+    }
+});
 
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
@@ -94,12 +106,32 @@ builder.Services.AddOpenApi("v1", options => options.AddDocumentTransformer((doc
     return Task.CompletedTask;
 }));
 
-var connectionString =
-    $"Server={Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost"};" +
-    $"Port={Environment.GetEnvironmentVariable("DB_PORT") ?? "3306"};" +
-    $"Database={Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "beerapi"};" +
-    $"User={Environment.GetEnvironmentVariable("MYSQL_USER") ?? "beerapi_user"};" +
-    $"Password={Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "beerapi_pass"};";
+if (builder.Environment.IsProduction() &&
+    string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("MYSQL_PASSWORD")))
+{
+    throw new InvalidOperationException("MYSQL_PASSWORD must be configured in Production.");
+}
+
+if (builder.Environment.IsProduction() &&
+    string.IsNullOrWhiteSpace(builder.Configuration["AdminUser:Password"]))
+{
+    throw new InvalidOperationException("AdminUser:Password must be configured in Production.");
+}
+
+if (builder.Environment.IsProduction() &&
+    string.IsNullOrWhiteSpace(builder.Configuration["RabbitMQ:Password"]))
+{
+    throw new InvalidOperationException("RabbitMQ:Password must be configured in Production.");
+}
+
+var connectionString = new MySqlConnectionStringBuilder
+{
+    Server = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost",
+    Port = uint.Parse(Environment.GetEnvironmentVariable("DB_PORT") ?? "3306"),
+    Database = Environment.GetEnvironmentVariable("MYSQL_DATABASE") ?? "beerapi",
+    UserID = Environment.GetEnvironmentVariable("MYSQL_USER") ?? "beerapi_user",
+    Password = Environment.GetEnvironmentVariable("MYSQL_PASSWORD") ?? "beerapi_pass"
+}.ConnectionString;
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
@@ -224,8 +256,31 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
-    await DataSeeder.SeedRolesAndAdminAsync(scope.ServiceProvider);
+    await db.Database.OpenConnectionAsync();
+    var connection = db.Database.GetDbConnection();
+    var migrationLockAcquired = false;
+    try
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT GET_LOCK('beerapi-schema-migrations', 60)";
+        migrationLockAcquired = Convert.ToInt32(await command.ExecuteScalarAsync()) == 1;
+        if (!migrationLockAcquired)
+            throw new TimeoutException("Timed out waiting for the database migration lock.");
+
+        await db.Database.MigrateAsync();
+        await DataSeeder.SeedRolesAndAdminAsync(scope.ServiceProvider);
+    }
+    finally
+    {
+        if (migrationLockAcquired)
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT RELEASE_LOCK('beerapi-schema-migrations')";
+            await command.ExecuteScalarAsync();
+        }
+
+        await db.Database.CloseConnectionAsync();
+    }
 }
 
 if (app.Environment.IsDevelopment())
@@ -236,6 +291,7 @@ if (app.Environment.IsDevelopment())
         .AddPreferredSecuritySchemes("Bearer"));
 }
 
+app.UseForwardedHeaders();
 app.UseSerilogRequestLogging(options =>
     options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} → {StatusCode} em {Elapsed:0.0}ms");
 app.UseMiddleware<ExceptionMiddleware>();

@@ -1,11 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+using BeerApi.Application.DTOs;
 using BeerApi.Domain.Enums;
 
 namespace BeerApi.Api.Controllers;
 
 public sealed record OrderListQueryDto
 {
-    [Range(1, int.MaxValue)]
+    [Range(1, PaginationQueryDto.MaxPage)]
     public int Page { get; init; } = 1;
 
     [Range(1, 100)]

@@ -23,12 +23,20 @@ public class WholesalersController(
         Ok(await _wholesalerService.GetAllAsync(query.Page, query.PageSize, ct));
 
     [HttpGet("{id:int}/beers")]
-    public async Task<IActionResult> GetStock(int id, CancellationToken ct) =>
-        Ok(await _wholesalerService.GetStockByWholesalerIdAsync(id, ct));
+    public async Task<IActionResult> GetStock(int id, CancellationToken ct)
+    {
+        if (!(await _authorizationService.AuthorizeAsync(User, id, AuthorizationPolicies.ManageWholesaler)).Succeeded)
+            return Forbid();
+
+        return Ok(await _wholesalerService.GetStockByWholesalerIdAsync(id, ct));
+    }
 
     [HttpPost("{id:int}/quote")]
     public async Task<IActionResult> GetQuote(int id, [FromBody] QuoteRequestDto request, CancellationToken ct)
     {
+        if (!(await _authorizationService.AuthorizeAsync(User, id, AuthorizationPolicies.ManageWholesaler)).Succeeded)
+            return Forbid();
+
         var quote = await _wholesalerService.GetQuoteAsync(id, request, ct);
         return Ok(quote);
     }

@@ -84,7 +84,9 @@ public sealed class AuthTokenService(
                 }
 
                 var user = await userManager.FindByIdAsync(current.UserId);
-                if (user is null)
+                if (user is null ||
+                    !user.EmailConfirmed ||
+                    await userManager.IsLockedOutAsync(user))
                 {
                     await RevokeFamilyAsync(current.FamilyId, now, ct);
                     await transaction.CommitAsync(ct);
@@ -97,6 +99,7 @@ public sealed class AuthTokenService(
             catch
             {
                 await transaction.RollbackAsync(ct);
+                context.ChangeTracker.Clear();
                 throw;
             }
         });

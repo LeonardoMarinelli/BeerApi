@@ -10,7 +10,7 @@ public class SaleConfiguration : IEntityTypeConfiguration<Sale>
     {
         builder.HasKey(s => s.Id);
         builder.Property(s => s.PricePerUnit).HasPrecision(10, 2);
-        builder.Property(s => s.TotalPrice).HasPrecision(10, 2);
+        builder.Property(s => s.TotalPrice).HasPrecision(15, 2);
         builder.Property(s => s.TaxRate).HasPrecision(5, 2);
 
         builder.HasOne(s => s.Brewery)

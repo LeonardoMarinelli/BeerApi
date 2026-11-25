@@ -385,8 +385,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<decimal>("DiscountAmount")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("decimal(12,2)");
+                        .HasPrecision(15, 2)
+                        .HasColumnType("decimal(15,2)");
 
                     b.Property<decimal>("DiscountPercent")
                         .HasPrecision(5, 2)
@@ -401,12 +401,12 @@ namespace BeerApi.Infrastructure.Data.Migrations
                         .HasColumnType("varchar(24)");
 
                     b.Property<decimal>("TotalBeforeDiscount")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("decimal(12,2)");
+                        .HasPrecision(15, 2)
+                        .HasColumnType("decimal(15,2)");
 
                     b.Property<decimal>("TotalPrice")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("decimal(12,2)");
+                        .HasPrecision(15, 2)
+                        .HasColumnType("decimal(15,2)");
 
                     b.Property<int>("Version")
                         .IsConcurrencyToken()
@@ -443,8 +443,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                         .HasColumnType("varchar(200)");
 
                     b.Property<decimal>("DiscountedSubtotal")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("decimal(12,2)");
+                        .HasPrecision(15, 2)
+                        .HasColumnType("decimal(15,2)");
 
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
@@ -453,8 +453,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("Subtotal")
-                        .HasPrecision(12, 2)
-                        .HasColumnType("decimal(12,2)");
+                        .HasPrecision(15, 2)
+                        .HasColumnType("decimal(15,2)");
 
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(10, 2)
@@ -548,8 +548,8 @@ namespace BeerApi.Infrastructure.Data.Migrations
                         .HasColumnType("decimal(5,2)");
 
                     b.Property<decimal>("TotalPrice")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)");
+                        .HasPrecision(15, 2)
+                        .HasColumnType("decimal(15,2)");
 
                     b.Property<int>("WholesalerId")
                         .HasColumnType("int");
@@ -727,6 +727,9 @@ namespace BeerApi.Infrastructure.Data.Migrations
                     b.Property<int>("Attempts")
                         .HasColumnType("int");
 
+                    b.Property<DateTimeOffset?>("DeadLetteredAt")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<string>("EventType")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -751,7 +754,7 @@ namespace BeerApi.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProcessedAt", "NextAttemptAt", "OccurredAt");
+                    b.HasIndex("ProcessedAt", "DeadLetteredAt", "NextAttemptAt", "OccurredAt");
 
                     b.ToTable("OutboxMessages");
                 });
@@ -781,6 +784,24 @@ namespace BeerApi.Infrastructure.Data.Migrations
                     b.HasKey("MessageId", "Consumer");
 
                     b.ToTable("ProcessedMessages");
+                });
+
+            modelBuilder.Entity("BeerApi.Infrastructure.Data.ProcessedMessageRecipient", b =>
+                {
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Consumer")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("RecipientHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)");
+
+                    b.HasKey("MessageId", "Consumer", "RecipientHash");
+
+                    b.ToTable("ProcessedMessageRecipients");
                 });
 
             modelBuilder.Entity("BeerApi.Infrastructure.Identity.ApplicationUser", b =>
@@ -1108,6 +1129,15 @@ namespace BeerApi.Infrastructure.Data.Migrations
                     b.Navigation("Beer");
 
                     b.Navigation("Wholesaler");
+                });
+
+            modelBuilder.Entity("BeerApi.Infrastructure.Data.ProcessedMessageRecipient", b =>
+                {
+                    b.HasOne("BeerApi.Infrastructure.Data.ProcessedMessage", null)
+                        .WithMany()
+                        .HasForeignKey("MessageId", "Consumer")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("BeerApi.Infrastructure.Identity.ApplicationUser", b =>

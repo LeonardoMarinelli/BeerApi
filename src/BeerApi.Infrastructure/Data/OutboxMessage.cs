@@ -7,6 +7,7 @@ public class OutboxMessage
     public string Payload { get; set; } = string.Empty;
     public DateTimeOffset OccurredAt { get; set; }
     public DateTimeOffset? ProcessedAt { get; set; }
+    public DateTimeOffset? DeadLetteredAt { get; set; }
     public DateTimeOffset? NextAttemptAt { get; set; }
     public int Attempts { get; set; }
     public string? LastError { get; set; }

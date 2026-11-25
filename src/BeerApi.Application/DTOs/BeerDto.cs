@@ -15,14 +15,14 @@ public record BeerDto(
 
 public record CreateBeerDto(
     [Required, MaxLength(200)] string Name,
-    [MaxLength(2000)] string Description,
+    [MaxLength(1000)] string Description,
     [Range(0.1, 100.0)] decimal AlcoholContent,
     [Range(0.01, 99999.99)] decimal Price,
     BeerStyle Style = BeerStyle.Other);
 
 public record UpdateBeerDto(
     [Required, MaxLength(200)] string Name,
-    [MaxLength(2000)] string Description,
+    [MaxLength(1000)] string Description,
     [Range(0.1, 100.0)] decimal AlcoholContent,
     [Range(0.01, 99999.99)] decimal Price,
     BeerStyle Style = BeerStyle.Other);
